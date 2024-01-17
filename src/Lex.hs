@@ -57,15 +57,17 @@ lexTokenStream = many (lexToken <* lexIntertokenSpace)
 
 lexToken :: LexFn Token
 lexToken = TokId <$> try lexIdentifier
-       <|> TokBool <$> try lexBoolean
-       <|> TokNum <$> try lexNumber
-       <|> TokChar <$> try lexCharacter
+       <|> TokBool <$> (try lexBoolean <* lookAheadDelimeter)
+       <|> TokNum <$> (try lexNumber <* lookAheadDelimeter)
+       <|> TokChar <$> (try lexCharacter <* lookAheadDelimeter)
        <|> TokString <$> try lexString
        <|> TokOpen <$ char '('
        <|> TokClose <$ char ')'
-       <|> TokHashOpen <$ string "#("
+       <|> TokHashOpen <$ string' "#("
        <|> TokQuote <$ char '\''
        <|> TokPeriod <$ char '.'
+      where lookAheadDelimeter = lookAhead lexDelimeter
+            lexDelimeter = void space <|> void (oneOf "()\";") <|> eof
 
 -- identifier -> initial subsequent* | pecuilar_identifier
 -- 
