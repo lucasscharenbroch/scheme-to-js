@@ -78,9 +78,9 @@ lexToken :: LexFn Token
 lexToken = flip Token <$> getPosition <*> lexTokenData
 
 lexTokenData :: LexFn TokenData
-lexTokenData = TokId <$> try lexIdentifier
+lexTokenData = TokNum <$> (try lexNumber <* lookAheadDelimeter)
+           <|> TokId <$> (try lexIdentifier <* lookAheadDelimeter)
            <|> TokBool <$> (try lexBoolean <* lookAheadDelimeter)
-           <|> TokNum <$> (try lexNumber <* lookAheadDelimeter)
            <|> TokChar <$> (try lexCharacter <* lookAheadDelimeter)
            <|> TokString <$> try lexString
            <|> TokOpen <$ char '('
@@ -89,7 +89,10 @@ lexTokenData = TokId <$> try lexIdentifier
            <|> TokQuote <$ char '\''
            <|> TokPeriod <$ char '.'
       where lookAheadDelimeter = lookAhead lexDelimeter
-            lexDelimeter = void space <|> void (oneOf "()\";") <|> eof
+            lexDelimeter = void space
+                       <|> void (oneOf "()\";")
+                       <|> eof
+                       <?> "whitespace / delimeter"
 
 -- identifier -> initial subsequent* | pecuilar_identifier
 -- 

@@ -148,26 +148,40 @@ parsePeriod = tokenPrim show updatePosTok (matchPeriod . getTokData)
 
 {- Grammar -}
 
--- expression -> variable
---             | quotation
---             | boolean
---             | number
---             | character
---             | string
---             | procedure_call
---             | lambda
---             | special_form
+-- expression -> expression_primitive
+--             | ( expression_parenthetical )
 
 parseExpression :: ParseFn Expression
-parseExpression = ExprVar <$> parseVariable
-              <|> try parseQuotation
+parseExpression = parseExpressionPrimitive
+              <|> inParens parseExpressionParenthetical
+              <?> "expression"
+
+-- expression_primitive -> boolean
+--                       | number
+--                       | character
+--                       | string
+--                       | quotation
+
+parseExpressionPrimitive :: ParseFn Expression
+parseExpressionPrimitive = ExprVar <$> parseVariable
               <|> ExprBool <$> parseBoolean
               <|> ExprNumber <$> parseNumber
               <|> ExprChar <$> parseChar
               <|> ExprString <$> parseString
-              <|> parseProcedureCall
-              <|> parseLambda
-              <|> parseSpecialForm
+              <|> parseQuotation
+              <?> "primitive (non-parenthesized) expression"
+
+-- expression_parenthetical -> quotation_alt
+--                           | procedure_call
+--                           | lambda
+--                           | special_form
+
+parseExpressionParenthetical :: ParseFn Expression
+parseExpressionParenthetical = parseQuotationAlt
+                           <|> parseProcedureCall
+                           <|> parseLambda
+                           <|> parseSpecialForm
+                           <?> "parenthesized expression (procedure / lambda / special form)"
 
 -- variable -> <non-keyword-id>
 
@@ -175,29 +189,32 @@ parseVariable :: ParseFn String
 parseVariable = try parseVariable'
     where parseVariable' = do id <- parseIdentifier
                               if id `elem` keywords
-                              then parserFail "bad variable (keyword)"
+                              then parserFail $ "bad variable (keyword): `" ++  id ++ "`"
                               else return id
 
 -- quotation -> ' datum
---            | ( quote datum )
 
 parseQuotation :: ParseFn Expression
 parseQuotation = ExprQuotation <$> (parseQuote *> parseDatum)
-             <|> ExprQuotation <$> inParens (parseLitId "quote" *> parseDatum)
 
--- procedure_call -> ( expression expression* )
+-- quotation_alt -> quote datum
+
+parseQuotationAlt :: ParseFn Expression
+parseQuotationAlt = ExprQuotation <$> (parseLitId "quote" *> parseDatum)
+
+-- procedure_call -> expression expression*
 
 parseProcedureCall :: ParseFn Expression
-parseProcedureCall = inParens $ ExprProcedureCall <$> parseExpression <*> many parseExpression
+parseProcedureCall = ExprProcedureCall <$> parseExpression <*> many parseExpression
 
--- lambda -> ( lambda formals body )
+-- lambda -> lambda formals body
 -- 
 -- formals -> variable
 --          | (variable+ . variable)
 --          | ( variable* )
 
 parseLambda :: ParseFn Expression
-parseLambda = inParens $ parseLitId "lambda" *> (ExprLambda <$> parseFormals <*> parseBody)
+parseLambda = parseLitId "lambda" *> (ExprLambda <$> parseFormals <*> parseBody)
     where parseFormals = FormalVarArgs [] <$> parseVariable
                      <|> inParens parseFormals'
           parseFormals' = try (FormalVarArgs <$> many1 parseVariable <*> (parsePeriod *> parseVariable))
@@ -206,7 +223,7 @@ parseLambda = inParens $ parseLitId "lambda" *> (ExprLambda <$> parseFormals <*>
 -- body -> definition* sequence
 
 parseBody :: ParseFn Body
-parseBody = Body <$> many parseDefinition <*> many1 parseExpression
+parseBody = Body <$> many (try $ inParens parseDefinition) <*> many1 parseExpression
 
 -- special_form -> sf_if
 --               | sf_set_bang
@@ -219,36 +236,36 @@ parseBody = Body <$> many parseDefinition <*> many1 parseExpression
 --               | sf_begin
 
 parseSpecialForm :: ParseFn Expression
-parseSpecialForm = try parseSfIf
-               <|> try parseSfSetBang
-               <|> try parseSfCond
-               <|> try parseSfAnd
-               <|> try parseSfOr
-               <|> try parseSfLet
-               <|> try parseSfLetStar
-               <|> try parseSfLetrec
-               <|> try parseSfBegin
+parseSpecialForm = parseSfIf
+               <|> parseSfSetBang
+               <|> parseSfCond
+               <|> parseSfAnd
+               <|> parseSfOr
+               <|> parseSfLet
+               <|> parseSfLetStar
+               <|> parseSfLetrec
+               <|> parseSfBegin
 
--- sf_if -> ( if expression expression expression )
+-- sf_if -> if expression expression expression
 
 parseSfIf :: ParseFn Expression
-parseSfIf = inParens $ ExprIf <$> (parseLitId "if" *> parseExpression)
-                              <*> parseExpression
-                              <*> parseExpression
+parseSfIf = ExprIf <$> (parseLitId "if" *> parseExpression)
+                   <*> parseExpression
+                   <*> parseExpression
 
--- sf_set_bang -> ( set! variable expression )
+-- sf_set_bang -> set! variable expression
 
 parseSfSetBang :: ParseFn Expression
-parseSfSetBang = inParens $ ExprAssignment <$> (parseLitId "set!" *> parseVariable)
-                                           <*> parseExpression
+parseSfSetBang = ExprAssignment <$> (parseLitId "set!" *> parseVariable)
+                                <*> parseExpression
 
--- sf_cond -> ( cond cond_clause+ )
---          | ( cond cond_clause* ( else sequence ) )
+-- sf_cond -> cond cond_clause+
+--          | cond cond_clause* ( else sequence )
 --
 -- cond_clause -> ( expression sequence )
 
 parseSfCond :: ParseFn Expression
-parseSfCond = inParens $ ExprCond <$> (parseLitId "cond" *> parseInner)
+parseSfCond = ExprCond <$> (parseLitId "cond" *> parseInner)
     where parseInner = do clauses <- many parseCondClause
                           elseClause <- option [] ((:[]) <$> parseCondClause)
                           case clauses ++ elseClause of
@@ -257,40 +274,40 @@ parseSfCond = inParens $ ExprCond <$> (parseLitId "cond" *> parseInner)
           parseCondClause = inParens $ CondIf <$> parseExpression <*> many parseExpression
           parseElseClause = inParens $ CondElse <$> (parseLitId "else" *> many parseExpression)
 
--- sf_and -> ( and expression* )
+-- sf_and -> and expression*
 
 parseSfAnd :: ParseFn Expression
-parseSfAnd = inParens $ ExprAnd <$> (parseLitId "and" *> many parseExpression)
+parseSfAnd = ExprAnd <$> (parseLitId "and" *> many parseExpression)
 
--- sf_or -> ( or expression* )
+-- sf_or -> or expression*
 
 parseSfOr :: ParseFn Expression
-parseSfOr = inParens $ ExprOr <$> (parseLitId "or" *> many parseExpression)
+parseSfOr = ExprOr <$> (parseLitId "or" *> many parseExpression)
 
--- sf_let -> ( let ( binding_spec* ) body )
+-- sf_let -> let ( binding_spec* ) body
 
 parseSfLet :: ParseFn Expression
-parseSfLet = inParens $ ExprLet <$> (parseLitId "let" *> inParens (many parseBindingSpec)) <*> parseBody
+parseSfLet = ExprLet <$> (parseLitId "let" *> inParens (many parseBindingSpec)) <*> parseBody
 
--- sf_let_star -> ( let* ( binding_spec* ) body )
+-- sf_let_star -> let* ( binding_spec* ) body
 
 parseSfLetStar :: ParseFn Expression
-parseSfLetStar = inParens $ ExprLetStar <$> (parseLitId "let*" *> inParens (many parseBindingSpec)) <*> parseBody
+parseSfLetStar = ExprLetStar <$> (parseLitId "let*" *> inParens (many parseBindingSpec)) <*> parseBody
 
--- sf_letrec -> ( letrec ( binding_spec* ) body )
+-- sf_letrec -> letrec ( binding_spec* ) body
 
 parseSfLetrec :: ParseFn Expression
-parseSfLetrec = inParens $ ExprLetrec <$> (parseLitId "letrec" *> inParens (many parseBindingSpec)) <*> parseBody
+parseSfLetrec = ExprLetrec <$> (parseLitId "letrec" *> inParens (many parseBindingSpec)) <*> parseBody
 
 -- binding_spec -> ( variable expression)
 
 parseBindingSpec :: ParseFn BindingSpec
 parseBindingSpec = inParens $ BindingSpec <$> parseVariable <*> parseExpression
 
--- sf_begin -> ( begin seuqence )
+-- sf_begin -> begin seuqence
 
 parseSfBegin :: ParseFn Expression
-parseSfBegin = inParens $ ExprBegin <$> (parseLitId "begin" *> many parseExpression)
+parseSfBegin = ExprBegin <$> (parseLitId "begin" *> many parseExpression)
 
 -- datum -> boolean
 --        | number
@@ -322,20 +339,21 @@ parseVector = between parseHashOpen parseClose (many parseDatum)
 -- program -> expression | definition
 
 parseProgram :: ParseFn Program
-parseProgram = ProgExpression <$> parseExpression
-           <|> ProgDefinition <$> parseDefinition
+parseProgram = ProgExpression <$> parseExpressionPrimitive
+           <|> inParens (ProgExpression <$> parseExpressionParenthetical <|>
+                         ProgDefinition <$> parseDefinition)
+           <?> "expression or definition"
 
--- definition -> ( define variable expression )
---             | ( define ( variable variable* ) body )
---             | ( define ( variable variable* . variable ) body )
+-- definition -> define variable expression
+--             | define ( variable variable* ) body
+--             | define ( variable variable* . variable ) body
 --
 -- def_formals -> variable* . variable
 --              | variable*
 
 parseDefinition :: ParseFn Definition
-parseDefinition = inParens $ parseLitId "define" *> parseInner
+parseDefinition = parseLitId "define" *> parseInner
     where parseInner = DefSimple <$> parseVariable <*> parseExpression
-                   <|> inParens (DefFunction <$> parseVariable <*> parseFormals <*> parseBody)
+                   <|> inParens (DefFunction <$> parseVariable <*> parseFormals) <*> parseBody
           parseFormals = try (FormalVarArgs <$> many parseVariable <*> (parsePeriod *> parseVariable))
                      <|> FormalArgList <$> many parseVariable
-
