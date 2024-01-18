@@ -15,8 +15,10 @@ cases = [
         "#t #f",
         "12ab",
         "#true",
-        "#\abc"
+        "#\\abc",
+        "#\\a bc",
+        "(define a 3)"
     ]
 
 main = do
-    mapM (print . tokenize) cases
+    mapM (print . (programize<$>) . tokenize) cases
