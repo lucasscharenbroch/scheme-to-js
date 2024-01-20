@@ -7,7 +7,8 @@ import Data.List
 import System.IO
 import System.Console.GetOpt
 import System.Environment (getArgs)
-import System.Exit (exitFailure)
+import System.Exit (exitFailure, exitSuccess)
+import Control.Monad
 
 {- CLI Arg Parse -}
 
@@ -41,9 +42,9 @@ sortOptions = foldl foldOpts (False, False, [], [])
 
 transpile :: String -> Either String String
 transpile input = case tokenize input of
-    Left err -> Left $ "Lexing Error: " ++ show err
+    Left err -> Left $ "lexer error: " ++ show err
     Right toks -> case programize toks of
-        Left err -> Left $ "Parsing Error: " ++ show err
+        Left err -> Left $ "parser error: " ++ show err
         Right programs -> Right . intercalate "\n" . map gen $ programs
 
 validateInfiles :: [String] -> IO ()
@@ -53,21 +54,17 @@ validateInfiles _ = return ()
 validateOutfile :: [String] -> IO String
 validateOutfile [] = return "out.scm.js"
 validateOutfile [filename] = return filename
-validateOutfile _ = hPutStrLn stderr "Too many output files specified (expected 0 or 1)" >> exitFailure
+validateOutfile _ = hPutStrLn stderr "too many output files specified (expected 0 or 1)" >> exitFailure
 
 main :: IO ()
 main = do
     (isHelp, isVerbose, inputs, outputs) <- sortOptions <$> handleArgv
-    if isHelp then putStr $ usageInfo usageHeader optDescriptions
-    else main' isVerbose inputs outputs
-
-main' :: Bool -> [String] -> [String] -> IO ()
-main' isVerbose inputs outputs = do
+    when isHelp $ putStr (usageInfo usageHeader optDescriptions) >> exitSuccess
     validateInfiles inputs
     outputFile <- validateOutfile outputs
-    inputText <- concat <$> mapM _readFile inputs
+    inputText <- concat <$> mapM (_readFile isVerbose) inputs
     case transpile inputText of
         Left err -> hPutStrLn stderr err >> exitFailure
         Right outputText -> writeFile outputFile outputText
-    where _readFile "-" = getContents
-          _readFile name = readFile name
+    where _readFile isVerbose "-" = when isVerbose (putStrLn "reading input from stdin") >> getContents
+          _readFile _ name = readFile name
