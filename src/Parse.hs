@@ -4,9 +4,10 @@ import Text.Parsec
 import Text.Parsec.Prim
 
 {- Constants -}
+
 keywords =  [
         "quote", "lambda", "if", "set!", "begin", "cond",
-        "and", "or", "let", "let*", "letrec", "define"
+        "and", "or", "let", "define"
     ]
 
 {- Data Structures -}
@@ -19,24 +20,18 @@ data Expression = ExprVar String
                 | ExprQuotation Datum
                 | ExprProcedureCall Expression [Expression]
                 | ExprLambda FormalArgs Body
-                | ExprVariadicLambda [String] String Expression
                 -- (special forms)
                 | ExprIf Expression Expression Expression
                 | ExprAssignment String Expression
                 | ExprCond [CondClause]
                 | ExprAnd [Expression]
                 | ExprOr [Expression]
-                | ExprLet [BindingSpec] Body
-                | ExprLetStar [BindingSpec] Body
-                | ExprLetrec [BindingSpec] Body
+                | ExprLet [Definition] Body
                 | ExprBegin [Expression]
     deriving (Show)
 
 data CondClause = CondIf Expression [Expression]
                 | CondElse [Expression]
-    deriving (Show)
-
-data BindingSpec = BindingSpec String Expression
     deriving (Show)
 
 -- Datum: similar to Expression, but without special forms
@@ -231,8 +226,6 @@ parseBody = Body <$> many (try $ inParens parseDefinition) <*> many1 parseExpres
 --               | sf_and
 --               | sf_of
 --               | sf_let
---               | sf_let_star
---               | sf_letrec
 --               | sf_begin
 
 parseSpecialForm :: ParseFn Expression
@@ -242,8 +235,6 @@ parseSpecialForm = parseSfIf
                <|> parseSfAnd
                <|> parseSfOr
                <|> parseSfLet
-               <|> parseSfLetStar
-               <|> parseSfLetrec
                <|> parseSfBegin
 
 -- sf_if -> if expression expression expression
@@ -289,20 +280,10 @@ parseSfOr = ExprOr <$> (parseLitId "or" *> many parseExpression)
 parseSfLet :: ParseFn Expression
 parseSfLet = ExprLet <$> (parseLitId "let" *> inParens (many parseBindingSpec)) <*> parseBody
 
--- sf_let_star -> let* ( binding_spec* ) body
-
-parseSfLetStar :: ParseFn Expression
-parseSfLetStar = ExprLetStar <$> (parseLitId "let*" *> inParens (many parseBindingSpec)) <*> parseBody
-
--- sf_letrec -> letrec ( binding_spec* ) body
-
-parseSfLetrec :: ParseFn Expression
-parseSfLetrec = ExprLetrec <$> (parseLitId "letrec" *> inParens (many parseBindingSpec)) <*> parseBody
-
 -- binding_spec -> ( variable expression)
 
-parseBindingSpec :: ParseFn BindingSpec
-parseBindingSpec = inParens $ BindingSpec <$> parseVariable <*> parseExpression
+parseBindingSpec :: ParseFn Definition
+parseBindingSpec = inParens $ DefSimple <$> parseVariable <*> parseExpression
 
 -- sf_begin -> begin seuqence
 

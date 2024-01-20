@@ -1,13 +1,15 @@
 module Main where
 import Lex
 import Parse
+import Generate
 import Text.Parsec (ParseError)
+import Data.List
 
 -- TODO remove
 resToStr :: Either ParseError (Either ParseError [Program]) -> String
 resToStr (Left err) = "tokenizing error: " ++ show err
 resToStr (Right (Left err)) = "parse error: " ++ show err
-resToStr (Right (Right p)) = show p
+resToStr (Right (Right p)) = intercalate "\n" $ map gen p
 
 cases = [
         -- "(())()#(abc abcdef + - + 432.432"
@@ -57,6 +59,21 @@ cases = [
         -- "'123.345"
         -- "'#(vec of things)"
         -- "(list 1 2 3)"
+        -- "'(a b c (d e f (1 2 3 ())))"
+        -- "(if #t (if #f (+ 1 2) 9) #t)"
+        -- "(lambda (x y z) (+ x y z))"
+        -- "(define x 2)"
+        -- "(define (x) 2)"
+        -- "(cond ())"
+        -- "(cond)"
+        -- "(cond (#t (if #t 123 999)) (#f 456) (xyz) (else 789))"
+        -- "(let ((a 1) (b 2) (c 3)) (define d 123) (+ a b c d))"
+        -- "(define Abc+- 123)"
+        -- "+"
+        -- "xyz!"
+        -- "1bc"
+        -- "'(a b c 1 2 3 #(1 2 3))"
+        "(quote (a b c 1 2 3 #(1 2 3)))"
     ]
 
 main = do
