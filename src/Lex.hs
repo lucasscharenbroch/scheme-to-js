@@ -36,6 +36,8 @@ data ArithSign = Positive | Negative
 
 type LexFn = Parsec String ()
 
+type PPDirective = [String]
+
 {- Pretty-Print -}
 
 instance Show TokenData where
@@ -55,10 +57,23 @@ instance Show Token where
 
 {- Lex Functions -}
 
-tokenize :: String -> Either ParseError [Token]
-tokenize = parse lexTokenStream ""
+tokenize :: String -> Either ParseError ([PPDirective], [Token])
+tokenize = parse lexDirectivesThenTokens ""
+      where lexDirectivesThenTokens = (,) <$> lexDirectiveStream <*> lexTokenStream
 
--- token_stream -> (token intertoken_space)* eof
+-- directive_stream -> (non-newline-whitespace* directive non-newline-whitespace*)*
+--
+-- directive -> ;#<whitespace-separated-words>\n
+
+lexDirectiveStream :: LexFn [PPDirective]
+lexDirectiveStream = many (try $ spaces *> lexDirective <* spaces)
+
+lexDirective :: LexFn PPDirective
+lexDirective = string ";#" *> many (spaces' *> lexWord <* spaces') <* newline
+      where lexWord = many1 $ noneOf " \t\r\n"
+            spaces' = skipMany $ oneOf " \t"
+
+-- token_stream -> (intertoken_space token intertoken_space)* eof
 --
 -- intertoken_space -> atmosphere*
 -- 

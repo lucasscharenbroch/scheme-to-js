@@ -1,5 +1,6 @@
 module Main where
 import Lex
+import Preprocess
 import Parse
 import Generate
 import Text.Parsec (ParseError)
@@ -40,12 +41,21 @@ sortOptions = foldl foldOpts (False, False, [], [])
           foldOpts (h, v, i, o) (InputFlag inFile) = (h, v, i ++ [inFile], o)
           foldOpts (h, v, i, o) (OutputFlag outFile) = (h, v, i, o ++ [outFile])
 
-transpile :: String -> Either String String
-transpile input = case tokenize input of
-    Left err -> Left $ "lexer error: " ++ show err
-    Right toks -> case programize toks of
-        Left err -> Left $ "parser error: " ++ show err
-        Right programs -> Right . intercalate "\n" . map gen $ programs
+transpile :: String -> String -> IO String
+transpile input filename = do
+    (directives, toks) <- case tokenize input of
+        Left err -> throwErr $ "lex error: " ++ show err
+        Right x -> return x
+    includeFiles <- case parseDirectives directives of
+        Left err -> throwErr err
+        Right x -> return x
+    includeFiles' <- mapM resolveIncludeFile includeFiles
+    includedSource <- mapM readFile includeFiles'
+    includedText <- intercalate "\n" <$> zipWithM transpile includedSource includeFiles'
+    case programize toks of
+        Left err -> throwErr $ "parser error: " ++ show err
+        Right programs -> return $ includedText ++ intercalate "\n" (map gen programs)
+    where throwErr err = hPutStrLn stderr (filename ++ ": " ++ err) >> exitFailure
 
 validateInfiles :: [String] -> IO ()
 validateInfiles [] = hPutStrLn stderr "expected input file (pass \"-\" to read from stdin)" >> exitFailure
@@ -62,10 +72,9 @@ main = do
     when isHelp $ putStr (usageInfo usageHeader optDescriptions) >> exitSuccess
     validateInfiles inputs
     outputFile <- validateOutfile outputs
-    inputText <- concat <$> mapM (_readFile isVerbose) inputs
+    inputTexts <- mapM (_readFile isVerbose) inputs
     coreLibraryText <- readFile "js-lib/core.js"
-    case transpile inputText of
-        Left err -> hPutStrLn stderr err >> exitFailure
-        Right outputText -> writeFile outputFile (coreLibraryText ++ "\n" ++ outputText)
+    outputText <- concat <$> zipWithM transpile inputTexts inputs
+    writeFile outputFile (coreLibraryText ++ outputText)
     where _readFile isVerbose "-" = when isVerbose (putStrLn "reading input from stdin") >> getContents
           _readFile _ name = readFile name
