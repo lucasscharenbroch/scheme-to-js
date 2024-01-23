@@ -115,7 +115,7 @@ function is_list(x) {
 
 // misc
 
-let s2j_eqQuestion = new SchemeProcedure(2, false, (x, y) => x.type == y.type && x.val == y.val);
+let s2j_eqQuestion = new SchemeProcedure(2, false, (x, y) => new SchemeBool(x.type == y.type && x.val == y.val));
 
 let s2j_error = new SchemeProcedure(1, false, s => err(s.val));
 let s2j_print = new SchemeProcedure(1, false, o => console.log(o));

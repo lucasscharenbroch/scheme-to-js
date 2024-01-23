@@ -17,6 +17,11 @@ run:
 debug:
 	cd src; $(GHCi) Main.hs
 
+test: FORCE
+	./test/run-tests.sh
+
+FORCE: ;
+
 # bin/$(EXE_NAME): $(SOURCE_FILES)
 # 	cd src; $(GHC) -o ../bin/$(EXE_NAME) Main.hs
 # 

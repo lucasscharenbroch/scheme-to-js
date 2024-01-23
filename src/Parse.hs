@@ -258,11 +258,11 @@ parseSfSetBang = ExprAssignment <$> (parseLitId "set!" *> parseVariable)
 parseSfCond :: ParseFn Expression
 parseSfCond = ExprCond <$> (parseLitId "cond" *> parseInner)
     where parseInner = do clauses <- many parseCondClause
-                          elseClause <- option [] ((:[]) <$> parseCondClause)
+                          elseClause <- option [] ((:[]) <$> parseElseClause)
                           case clauses ++ elseClause of
                               [] -> parserFail "empty cond statement"
                               clauses' -> return clauses'
-          parseCondClause = inParens $ CondIf <$> parseExpression <*> many parseExpression
+          parseCondClause = try $ inParens $ CondIf <$> (notFollowedBy (parseLitId "else") *> parseExpression) <*> many parseExpression
           parseElseClause = inParens $ CondElse <$> (parseLitId "else" *> many parseExpression)
 
 -- sf_and -> and expression*
