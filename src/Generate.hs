@@ -106,10 +106,10 @@ genExpr (ExprCond clauses) = intercalate "\n" (map genClause clauses ++ [jsNil])
           genSeq seq = genBody $ Body [] seq
 genExpr (ExprAnd args) = case args of
     [] -> jsBool True
-    as -> foldr1 (\a b -> callMember a "and" [b]) $ map genExpr as
+    as -> foldr1 (\a b -> callMember a "and" ["() => " ++ b]) $ map genExpr as
 genExpr (ExprOr args) = case args of
     [] -> jsBool True
-    as -> foldr1 (\a b -> callMember a "or" [b]) $ map genExpr as
+    as -> foldr1 (\a b -> callMember a "or" ["() => " ++ b]) $ map genExpr as
 genExpr (ExprLet outerBindings (Body innerBindings exprs)) = genBody $ Body (outerBindings ++ innerBindings) exprs
 genExpr (ExprBegin exprs) = genBody $ Body [] exprs
 
