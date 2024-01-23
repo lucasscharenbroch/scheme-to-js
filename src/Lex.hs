@@ -67,7 +67,7 @@ tokenize = parse lexTokenStream ""
 -- atmosphere -> space | newline | comment
 
 lexTokenStream :: LexFn [Token]
-lexTokenStream = many (lexToken <* lexIntertokenSpace) <* eof
+lexTokenStream = many (lexIntertokenSpace *> lexToken <* lexIntertokenSpace) <* eof
     where lexIntertokenSpace = many (void space <|> lexComment)
           lexComment = void (char ';' *> many (noneOf "\n") <* newline)
 

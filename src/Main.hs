@@ -63,8 +63,9 @@ main = do
     validateInfiles inputs
     outputFile <- validateOutfile outputs
     inputText <- concat <$> mapM (_readFile isVerbose) inputs
+    coreLibraryText <- readFile "js-lib/core.js"
     case transpile inputText of
         Left err -> hPutStrLn stderr err >> exitFailure
-        Right outputText -> writeFile outputFile outputText
+        Right outputText -> writeFile outputFile (coreLibraryText ++ "\n" ++ outputText)
     where _readFile isVerbose "-" = when isVerbose (putStrLn "reading input from stdin") >> getContents
           _readFile _ name = readFile name

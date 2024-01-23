@@ -72,7 +72,8 @@ jsProcedure :: Int -> Bool -> String -> String
 jsProcedure numArgs isVariadic f = "new " ++ jsProcedureType ++ "(" ++ intercalate ", " [show numArgs, map toLower $ show isVariadic, f] ++ ")"
 
 jsList :: [String] -> String
-jsList args = callMember jsPairType "from_arr" ["[" ++ intercalate ", " args ++ "]"]
+jsList [] = "new " ++ jsNilType ++ "()"
+jsList args = call "arr_to_list" ["[" ++ intercalate ", " args ++ "]"]
 
 jsVector :: [String] -> String
 jsVector args = "new " ++ jsVectorType ++ "([" ++ intercalate ", " args ++ "])"
