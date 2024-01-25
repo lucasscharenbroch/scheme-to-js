@@ -57,8 +57,8 @@ instance Show Token where
 
 {- Lex Functions -}
 
-tokenize :: String -> Either ParseError ([PPDirective], [Token])
-tokenize = parse lexDirectivesThenTokens ""
+lexDirsAndToks :: String -> Either ParseError ([PPDirective], [Token])
+lexDirsAndToks = parse lexDirectivesThenTokens ""
       where lexDirectivesThenTokens = (,) <$> lexDirectiveStream <*> lexTokenStream
 
 -- directive_stream -> (non-newline-whitespace* directive non-newline-whitespace*)*
@@ -82,7 +82,7 @@ lexDirective = string ";#" *> many (spaces' *> lexWord <* spaces') <* newline
 -- atmosphere -> space | newline | comment
 
 lexTokenStream :: LexFn [Token]
-lexTokenStream = many (lexIntertokenSpace *> lexToken <* lexIntertokenSpace) <* eof
+lexTokenStream = try ( many (lexIntertokenSpace *> lexToken <* lexIntertokenSpace)) <* lexIntertokenSpace <* eof
     where lexIntertokenSpace = many (void space <|> lexComment)
           lexComment = void (char ';' *> many (noneOf "\n") <* newline)
 

@@ -5,7 +5,3 @@
 
 cabal run -- s2j test/test*
 node out.scm.js
-
-if (( ! $? )); then
-    echo Success
-fi

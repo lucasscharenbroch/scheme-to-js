@@ -17,12 +17,12 @@ class SchemeObject {
 
     and(other) {
         if(!this.truthy()) return this;
-        else return other;
+        else return other();
     }
 
     or(other) {
         if(this.truthy()) return this;
-        else return other;
+        else return other();
     }
 }
 

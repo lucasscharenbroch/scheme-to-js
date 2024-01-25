@@ -41,20 +41,11 @@ sortOptions = foldl foldOpts (False, False, [], [])
           foldOpts (h, v, i, o) (InputFlag inFile) = (h, v, i ++ [inFile], o)
           foldOpts (h, v, i, o) (OutputFlag outFile) = (h, v, i, o ++ [outFile])
 
-transpile :: String -> String -> IO String
-transpile input filename = do
-    (directives, toks) <- case tokenize input of
-        Left err -> throwErr $ "lex error: " ++ show err
-        Right x -> return x
-    includeFiles <- case parseDirectives directives of
-        Left err -> throwErr err
-        Right x -> return x
-    includeFiles' <- mapM resolveIncludeFile includeFiles
-    includedSource <- mapM readFile includeFiles'
-    includedText <- intercalate "\n" <$> zipWithM transpile includedSource includeFiles'
+parseAndGen :: IncludeFile -> [Token] -> IO String
+parseAndGen filename toks = do
     case programize toks of
         Left err -> throwErr $ "parser error: " ++ show err
-        Right programs -> return $ includedText ++ intercalate "\n" (map gen programs)
+        Right programs -> return $ intercalate "\n" (map gen programs)
     where throwErr err = hPutStrLn stderr (filename ++ ": " ++ err) >> exitFailure
 
 validateInfiles :: [String] -> IO ()
@@ -74,7 +65,7 @@ main = do
     outputFile <- validateOutfile outputs
     inputTexts <- mapM (_readFile isVerbose) inputs
     coreLibraryText <- readFile "js-lib/core.js"
-    outputText <- concat <$> zipWithM transpile inputTexts inputs
+    outputText <- fmap concat $ mapM (uncurry parseAndGen) =<< topSortIncludes (zip inputs inputTexts)
     writeFile outputFile (coreLibraryText ++ outputText)
     where _readFile isVerbose "-" = when isVerbose (putStrLn "reading input from stdin") >> getContents
           _readFile _ name = readFile name
