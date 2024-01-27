@@ -78,6 +78,9 @@ jsList args = call "arr_to_list" ["[" ++ intercalate ", " args ++ "]"]
 jsVector :: [String] -> String
 jsVector args = "new " ++ jsVectorType ++ "([" ++ intercalate ", " args ++ "])"
 
+jsPair :: String -> String -> String
+jsPair left right = "new " ++ jsPairType ++ "({car: " ++ left ++ ", cdr: " ++  jsList [right] ++ "})"
+
 {- Generation Functions -}
 
 gen :: Program -> String
@@ -125,6 +128,7 @@ genQuote (DatumChar c) = jsChar c
 genQuote (DatumString s) = jsString s
 genQuote (DatumList l) = jsList (map genQuote l)
 genQuote (DatumVector v) = jsVector (map genQuote v)
+genQuote (DatumQuotation d) = jsPair (jsSymbol "quote") (genQuote d)
 
 genBody :: Body -> String
 genBody (Body defs exprs) = "(() => {\n" ++ defs' ++ exprs' ++ "})()"

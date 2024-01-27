@@ -37,6 +37,7 @@ data CondClause = CondIf Expression [Expression]
 -- Datum: similar to Expression, but without special forms
 -- (used for quotation)
 data Datum = DatumSymbol String
+           | DatumQuotation Datum
            | DatumBool Bool
            | DatumNumber Double
            | DatumChar Char
@@ -306,6 +307,7 @@ parseDatum = DatumBool <$> parseBoolean
          <|> DatumSymbol <$> parseIdentifier
          <|> DatumList <$> parseList
          <|> DatumVector <$> parseVector
+         <|> DatumQuotation <$> (parseQuote *> parseDatum)
 
 -- list -> ( datum* )
 
