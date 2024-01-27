@@ -224,7 +224,7 @@ parseBody = Body <$> many (try $ inParens parseDefinition) <*> many1 parseExpres
 --               | sf_set_bang
 --               | sf_cond
 --               | sf_and
---               | sf_of
+--               | sf_or
 --               | sf_let
 --               | sf_begin
 

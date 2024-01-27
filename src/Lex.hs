@@ -82,7 +82,7 @@ lexDirective = string ";#" *> many (spaces' *> lexWord <* spaces') <* newline
 -- atmosphere -> space | newline | comment
 
 lexTokenStream :: LexFn [Token]
-lexTokenStream = try ( many (lexIntertokenSpace *> lexToken <* lexIntertokenSpace)) <* lexIntertokenSpace <* eof
+lexTokenStream = many (try $ lexIntertokenSpace *> lexToken <* lexIntertokenSpace) <* lexIntertokenSpace <* eof
     where lexIntertokenSpace = many (void space <|> lexComment)
           lexComment = void (char ';' *> many (noneOf "\n") <* newline)
 
