@@ -36,6 +36,14 @@ mangleChar c = [toLower c]
 mangle :: String -> String
 mangle id = "s2j_" ++ concatMap mangleChar id
 
+definitionName :: Definition -> String
+definitionName (DefSimple s _) = s
+definitionName (DefFunction s _ _) = s
+
+definitionRhs :: Definition -> Expression
+definitionRhs (DefSimple _ e) = e
+definitionRhs (DefFunction _ args body) = ExprLambda args body
+
 {- JS Constructors -}
 
 jsNilType = "SchemeNil"
@@ -113,7 +121,12 @@ genExpr (ExprAnd args) = case args of
 genExpr (ExprOr args) = case args of
     [] -> jsBool True
     as -> foldr1 (\a b -> callMember a "or" ["() => " ++ b]) $ map genExpr as
-genExpr (ExprLet outerBindings (Body innerBindings exprs)) = genBody $ Body (outerBindings ++ innerBindings) exprs
+genExpr (ExprLet bindings body) = call (mkLambda (map definitionName bindings) body) $ map (genExpr . definitionRhs) bindings
+    where mkLambda args body = parenthesize (intercalate "," $ map mangle args) ++ " => " ++ genBody body
+genExpr (ExprLetStar bindings body) = genExpr $ recurse bindings body
+    where recurse [] body = ExprProcedureCall (ExprLambda (FormalArgList []) body) []
+          recurse (d:ds) body = ExprProcedureCall (ExprLambda (FormalArgList [definitionName d]) (Body [] [recurse ds body])) [definitionRhs d]
+genExpr (ExprLetRec outerBindings (Body innerBindings exprs)) = genBody $ Body (outerBindings ++ innerBindings) exprs
 genExpr (ExprBegin exprs) = genBody $ Body [] exprs
 
 genDef :: Definition -> String
@@ -131,7 +144,7 @@ genQuote (DatumVector v) = jsVector (map genQuote v)
 genQuote (DatumQuotation d) = jsPair (jsSymbol "quote") (genQuote d)
 
 genBody :: Body -> String
-genBody (Body defs exprs) = "(() => {\n" ++ defs' ++ exprs' ++ "})()"
+genBody (Body defs exprs) = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
     where defs' = concatMap genDef defs
           exprs' = concatMap ((++";\n") . genExpr) (init exprs) ++ "return " ++ genExpr (last exprs) ++ ";\n"
 

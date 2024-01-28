@@ -7,7 +7,7 @@ import Text.Parsec.Prim
 
 keywords =  [
         "quote", "lambda", "if", "set!", "begin", "cond",
-        "and", "or", "let", "define"
+        "and", "or", "let", "let*", "letrec", "define"
     ]
 
 {- Data Structures -}
@@ -27,6 +27,8 @@ data Expression = ExprVar String
                 | ExprAnd [Expression]
                 | ExprOr [Expression]
                 | ExprLet [Definition] Body
+                | ExprLetStar [Definition] Body
+                | ExprLetRec [Definition] Body
                 | ExprBegin [Expression]
     deriving (Show)
 
@@ -227,6 +229,8 @@ parseBody = Body <$> many (try $ inParens parseDefinition) <*> many1 parseExpres
 --               | sf_and
 --               | sf_or
 --               | sf_let
+--               | sf_let*
+--               | sf_letrec
 --               | sf_begin
 
 parseSpecialForm :: ParseFn Expression
@@ -236,6 +240,8 @@ parseSpecialForm = parseSfIf
                <|> parseSfAnd
                <|> parseSfOr
                <|> parseSfLet
+               <|> parseSfLetStar
+               <|> parseSfLetRec
                <|> parseSfBegin
 
 -- sf_if -> if expression expression expression
@@ -280,6 +286,16 @@ parseSfOr = ExprOr <$> (parseLitId "or" *> many parseExpression)
 
 parseSfLet :: ParseFn Expression
 parseSfLet = ExprLet <$> (parseLitId "let" *> inParens (many parseBindingSpec)) <*> parseBody
+
+-- sf_let* -> let* ( binding_spec* ) body
+
+parseSfLetStar :: ParseFn Expression
+parseSfLetStar = ExprLetStar <$> (parseLitId "let*" *> inParens (many parseBindingSpec)) <*> parseBody
+
+-- sf_letrec -> letrec ( binding_spec* ) body
+
+parseSfLetRec :: ParseFn Expression
+parseSfLetRec = ExprLetRec <$> (parseLitId "letrec" *> inParens (many parseBindingSpec)) <*> parseBody
 
 -- binding_spec -> ( variable expression)
 
