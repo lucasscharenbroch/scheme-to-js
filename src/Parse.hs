@@ -44,7 +44,8 @@ data Datum = DatumSymbol String
            | DatumNumber Double
            | DatumChar Char
            | DatumString String
-           | DatumList [Datum]
+           | DatumPair Datum Datum
+           | DatumNull
            | DatumVector [Datum]
     deriving (Show)
 
@@ -321,14 +322,21 @@ parseDatum = DatumBool <$> parseBoolean
          <|> DatumChar <$> parseChar
          <|> DatumString <$> parseString
          <|> DatumSymbol <$> parseIdentifier
-         <|> DatumList <$> parseList
          <|> DatumVector <$> parseVector
          <|> DatumQuotation <$> (parseQuote *> parseDatum)
+         <|> parseList
 
 -- list -> ( datum* )
 
-parseList :: ParseFn [Datum]
-parseList = inParens (many parseDatum)
+parseList :: ParseFn Datum
+parseList = DatumNull <$ try (parseOpen *> parseClose)
+        <|> inParens ((unlistify . reverse) .: reverseCons <$> many1 parseDatum <*> option DatumNull (parsePeriod *> parseDatum))
+    where reverseCons :: [Datum] -> Datum -> [Datum]
+          reverseCons xs x = x : reverse xs
+          unlistify :: [Datum] -> Datum
+          unlistify [d] = d
+          unlistify (d:ds) = DatumPair d (unlistify ds)
+          (.:) = (.) . (.)
 
 -- vector -> #( datum* )
 

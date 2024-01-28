@@ -87,7 +87,7 @@ scmVector :: [String] -> String
 scmVector args = "new " ++ scmVectorType ++ "([" ++ intercalate ", " args ++ "])"
 
 scmPair :: String -> String -> String
-scmPair left right = "new " ++ scmPairType ++ "({car: " ++ left ++ ", cdr: " ++  scmList [right] ++ "})"
+scmPair left right = "new " ++ scmPairType ++ "({car: " ++ left ++ ", cdr: " ++  right ++ "})"
 
 {- Generation Functions -}
 
@@ -139,9 +139,10 @@ genQuote (DatumBool b) = scmBool b
 genQuote (DatumNumber n) = scmNum n
 genQuote (DatumChar c) = scmChar c
 genQuote (DatumString s) = scmString s
-genQuote (DatumList l) = scmList (map genQuote l)
+genQuote (DatumPair car cdr) = scmPair (genQuote car) (genQuote cdr)
 genQuote (DatumVector v) = scmVector (map genQuote v)
-genQuote (DatumQuotation d) = scmPair (scmSymbol "quote") (genQuote d)
+genQuote (DatumQuotation d) = scmPair (scmSymbol "quote") (scmList [genQuote d])
+genQuote DatumNull = scmNil
 
 genBody :: Body -> String
 genBody (Body defs exprs) = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
