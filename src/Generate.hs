@@ -44,50 +44,50 @@ definitionRhs :: Definition -> Expression
 definitionRhs (DefSimple _ e) = e
 definitionRhs (DefFunction _ args body) = ExprLambda args body
 
-{- JS Constructors -}
+{- SCM Constructors -}
 
-jsNilType = "SchemeNil"
-jsNumType = "SchemeNum"
-jsCharType = "SchemeChar"
-jsStringType = "SchemeString"
-jsBoolType = "SchemeBool"
-jsProcedureType = "SchemeProcedure"
-jsSymbolType = "SchemeSymbol"
-jsVectorType = "SchemeVector"
-jsPairType = "SchemePair"
+scmNilType = "SchemeNil"
+scmNumType = "SchemeNum"
+scmCharType = "SchemeChar"
+scmStringType = "SchemeString"
+scmBoolType = "SchemeBool"
+scmProcedureType = "SchemeProcedure"
+scmSymbolType = "SchemeSymbol"
+scmVectorType = "SchemeVector"
+scmPairType = "SchemePair"
 
-jsNil :: String
-jsNil = "new " ++ jsNilType ++ "()"
+scmNil :: String
+scmNil = "new " ++ scmNilType ++ "()"
 
-jsNum :: Double -> String
-jsNum n = "new " ++ jsNumType ++ "(" ++ show n ++ ")"
+scmNum :: Double -> String
+scmNum n = "new " ++ scmNumType ++ "(" ++ show n ++ ")"
 
-jsChar :: Char -> String
-jsChar c = "new " ++ jsCharType ++ "(" ++ show c  ++ ")"
+scmChar :: Char -> String
+scmChar c = "new " ++ scmCharType ++ "(" ++ show c  ++ ")"
 
-jsString :: String -> String
-jsString s = "new " ++ jsStringType ++ "(" ++ show s ++ ")"
+scmString :: String -> String
+scmString s = "new " ++ scmStringType ++ "(" ++ show s ++ ")"
 
-jsBool :: Bool -> String
-jsBool b = "new " ++ jsBoolType ++ "(" ++ showBool b ++ ")"
+scmBool :: Bool -> String
+scmBool b = "new " ++ scmBoolType ++ "(" ++ showBool b ++ ")"
     where showBool True = "true"
           showBool False = "false"
 
-jsSymbol :: String -> String
-jsSymbol str = "new " ++ jsSymbolType ++ "(" ++ show str ++ ")"
+scmSymbol :: String -> String
+scmSymbol str = "new " ++ scmSymbolType ++ "(" ++ show str ++ ")"
 
-jsProcedure :: Int -> Bool -> String -> String
-jsProcedure numArgs isVariadic f = "new " ++ jsProcedureType ++ "(" ++ intercalate ", " [show numArgs, map toLower $ show isVariadic, f] ++ ")"
+scmProcedure :: Int -> Bool -> String -> String
+scmProcedure numArgs isVariadic f = "new " ++ scmProcedureType ++ "(" ++ intercalate ", " [show numArgs, map toLower $ show isVariadic, f] ++ ")"
 
-jsList :: [String] -> String
-jsList [] = "new " ++ jsNilType ++ "()"
-jsList args = call "arr_to_list" ["[" ++ intercalate ", " args ++ "]"]
+scmList :: [String] -> String
+scmList [] = "new " ++ scmNilType ++ "()"
+scmList args = call "arr_to_list" ["[" ++ intercalate ", " args ++ "]"]
 
-jsVector :: [String] -> String
-jsVector args = "new " ++ jsVectorType ++ "([" ++ intercalate ", " args ++ "])"
+scmVector :: [String] -> String
+scmVector args = "new " ++ scmVectorType ++ "([" ++ intercalate ", " args ++ "])"
 
-jsPair :: String -> String -> String
-jsPair left right = "new " ++ jsPairType ++ "({car: " ++ left ++ ", cdr: " ++  jsList [right] ++ "})"
+scmPair :: String -> String -> String
+scmPair left right = "new " ++ scmPairType ++ "({car: " ++ left ++ ", cdr: " ++  scmList [right] ++ "})"
 
 {- Generation Functions -}
 
@@ -97,10 +97,10 @@ gen (ProgDefinition d) = genDef d
 
 genExpr :: Expression -> String
 genExpr (ExprVar id) = mangle id
-genExpr (ExprNumber num) = jsNum num
-genExpr (ExprChar ch) = jsChar ch
-genExpr (ExprString str) = jsString str
-genExpr (ExprBool b) = jsBool b
+genExpr (ExprNumber num) = scmNum num
+genExpr (ExprChar ch) = scmChar ch
+genExpr (ExprString str) = scmString str
+genExpr (ExprBool b) = scmBool b
 genExpr (ExprQuotation datum) = genQuote datum
 genExpr (ExprProcedureCall p args) = callMember (genExpr p) "call" (map genExpr args)
 genExpr (ExprLambda args body) = genLambda args body
@@ -110,16 +110,16 @@ genExpr (ExprIf cond conseq alt) = parenthesize (callMember cond' "truthy" []) +
           conseq' = genExpr conseq
           alt' = genExpr alt
 genExpr (ExprAssignment id rhs) = mangle id ++ " = " ++ genExpr rhs ++ ";"
-genExpr (ExprCond clauses) = intercalate "\n" (map genClause clauses ++ [jsNil])
+genExpr (ExprCond clauses) = intercalate "\n" (map genClause clauses ++ [scmNil])
     where genClause (CondIf cond conseq) = callMember (genExpr cond) "truthy" [] ++ " ? " ++ genSeq conseq ++ " :"
           genClause (CondElse conseq)  = "true ? " ++ genSeq conseq ++ " : "
-          genSeq [] = jsNil
+          genSeq [] = scmNil
           genSeq seq = genBody $ Body [] seq
 genExpr (ExprAnd args) = case args of
-    [] -> jsBool True
+    [] -> scmBool True
     as -> foldr1 (\a b -> callMember a "and" ["() => " ++ b]) $ map genExpr as
 genExpr (ExprOr args) = case args of
-    [] -> jsBool True
+    [] -> scmBool True
     as -> foldr1 (\a b -> callMember a "or" ["() => " ++ b]) $ map genExpr as
 genExpr (ExprLet bindings body) = call (mkLambda (map definitionName bindings) body) $ map (genExpr . definitionRhs) bindings
     where mkLambda args body = parenthesize (intercalate "," $ map mangle args) ++ " => " ++ genBody body
@@ -134,14 +134,14 @@ genDef (DefSimple name val) = "let " ++ mangle name ++ " = " ++ genExpr val ++ "
 genDef (DefFunction name args body) = "let " ++ mangle name ++ " = " ++ genLambda args body ++ ";\n"
 
 genQuote :: Datum -> String
-genQuote (DatumSymbol s) = jsSymbol s
-genQuote (DatumBool b) = jsBool b
-genQuote (DatumNumber n) = jsNum n
-genQuote (DatumChar c) = jsChar c
-genQuote (DatumString s) = jsString s
-genQuote (DatumList l) = jsList (map genQuote l)
-genQuote (DatumVector v) = jsVector (map genQuote v)
-genQuote (DatumQuotation d) = jsPair (jsSymbol "quote") (genQuote d)
+genQuote (DatumSymbol s) = scmSymbol s
+genQuote (DatumBool b) = scmBool b
+genQuote (DatumNumber n) = scmNum n
+genQuote (DatumChar c) = scmChar c
+genQuote (DatumString s) = scmString s
+genQuote (DatumList l) = scmList (map genQuote l)
+genQuote (DatumVector v) = scmVector (map genQuote v)
+genQuote (DatumQuotation d) = scmPair (scmSymbol "quote") (genQuote d)
 
 genBody :: Body -> String
 genBody (Body defs exprs) = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
@@ -149,7 +149,7 @@ genBody (Body defs exprs) = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
           exprs' = concatMap ((++";\n") . genExpr) (init exprs) ++ "return " ++ genExpr (last exprs) ++ ";\n"
 
 genLambda :: FormalArgs -> Body -> String
-genLambda (FormalArgList names) body = jsProcedure (length names) False f
+genLambda (FormalArgList names) body = scmProcedure (length names) False f
     where f = "(" ++ intercalate ", " (map mangle names) ++ ")" ++ " => " ++ genBody body
-genLambda (FormalVarArgs positionals list) body = jsProcedure (1 + length positionals) True f
+genLambda (FormalVarArgs positionals list) body = scmProcedure (1 + length positionals) True f
     where f = "(" ++ intercalate ", " (map mangle $ positionals ++ [list]) ++ ")" ++ " => " ++ genBody body
