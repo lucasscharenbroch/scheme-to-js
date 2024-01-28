@@ -111,6 +111,29 @@ function is_list(x) {
     return x.type == "nil" || (x.type == "pair" && is_list(x.val.cdr));
 }
 
+function mangle_name(id) {
+    const escaped_chars = {
+        "!": "Bang",
+        "$": "Dollar",
+        "%": "Perc",
+        "&": "Amp",
+        "*": "Ast",
+        "/": "Slash",
+        ":": "Colon",
+        "<": "Lt",
+        "=": "Eq",
+        ">": "Gt",
+        "?": "Question",
+        "~": "Tilde",
+        "^": "Hat",
+        "+": "Add",
+        "-": "Sub",
+        ".": "Dot",
+    }
+
+    return "s2j_" + id.toLowerCase().split("").map(c => escaped_chars[c] || c).join("");
+}
+
 /* functions */
 
 // misc
@@ -119,6 +142,13 @@ let s2j_eqQuestion = new SchemeProcedure(2, false, (x, y) => new SchemeBool(x.ty
 
 let s2j_error = new SchemeProcedure(1, false, s => err(s.val));
 let s2j_print = new SchemeProcedure(1, false, o => console.log(o));
+
+let s2j_evalSubsymbol = new SchemeProcedure(1, false, s => s.type != "symbol" ? err("eval-symbol: expected symbol") : eval(mangle_name(s.val)));
+let s2j_setBangSubdynamic = new SchemeProcedure(2, false, (s, x) => s.type != "symbol" ? err("set!-dynamic: expected symbol") : eval(`${mangle_name(s.val)} = x`));
+
+let s2j_applySubprocedure = new SchemeProcedure(2, false, (p, args) => p.type != "procedure" ? err("apply-procedure: expected procedure as first argument") :
+                                                                       !is_list(args) ? err("apply-procedure: expected list as second argument") :
+                                                                       p.call(...list_to_vec(args).val));
 
 // types
 
@@ -145,9 +175,11 @@ let s2j_listSubGtstring = new SchemeProcedure(1, false, l => !is_list(l) ? err("
                                                              !list_to_vec(l).val.every(x => x.type == "char") ? err("list->string: expected *char* list" + list_to_vec(l).val) :
                                                              new SchemeString(list_to_vec(l).val.map(sc => sc.val).join("")));
 
-
 let s2j_listSubGtvector = new SchemeProcedure(1, false, l => !is_list(l) ? err("list->vector: expected list") : list_to_vec(l));
 let s2j_vectorSubGtlist = new SchemeProcedure(1, false, v => v.type != "vector" ? err("vector->list: expected vector") : arr_to_list(v.val));
+
+let s2j_numberSubGtstring = new SchemeProcedure(1, false, n => n.type != "number" ? err("number->string: expected number") : new SchemeString("" + n.val));
+let s2j_stringSubGtnumber = new SchemeProcedure(1, false, s => s.type != "string" ? err("string->number: expected string") : new SchemeNumber(Number(s.val)));
 
 // pairs
 

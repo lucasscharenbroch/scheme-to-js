@@ -102,7 +102,6 @@
           x)
       x))
 
-; memq
 (define (memq obj l)
   (define (memq-rec l)
     (cond ((null? l) #f)
@@ -112,7 +111,6 @@
       (error "memq: expected list")
       (memq-rec l)))
 
-; assq
 (define (assq obj alist)
   (define (assq-rec l)
     (cond ((null? l) #f)
@@ -122,8 +120,6 @@
   (if (not (list? alist))
       (error "assq: expected list")
       (assq-rec alist)))
-
-; map
 
 (define (map f l)
   (define (map-rec f l)
@@ -166,12 +162,6 @@
 ; truncate
 
 ; round
-
-; number->string
-
-; string->number
-
-
 
 ;;;;; chars
 
@@ -224,6 +214,90 @@
 
 ; vector-fill! (mutable)
 
-;;;;; control
+;;;;; metacircular evaluator
 
-; map (variadic)
+;;; eval
+
+; eval-lambda
+
+; eval-define
+
+; eval-cond
+
+; eval-if
+
+; eval-and
+
+; eval-or
+
+; evel-set!
+
+; eval-let
+
+; eval-let*
+
+; eval-letrec
+
+; eval-begin
+
+; eval-list
+
+; lookup
+
+(define (eval-list l env)
+  (if (null? l)
+      '()
+      (cons (eval (car l) env)
+            (eval-list (cdr l) env))))
+
+(define special-forms (list
+  (cons 'lambda eval-lambda)
+  (cons 'define eval-define)
+  (cons 'cond eval-cond)
+  (cons 'if eval-if)
+  (cons 'and eval-and)
+  (cons 'or eval-or)
+  (cons 'set! eval-set!)
+  (cons 'let eval-let)
+  (cons 'let* eval-let*)
+  (const 'letrec eval-letrec)
+  (cons 'begin eval-begin)
+))
+
+(define (eval expr env)
+  (cond ((or (number? expr)
+             (boolean? expr)
+             (string? expr)
+             (vector? expr)
+             (char? expr)
+             (procedure? expr))
+         x)
+        ((symbol? expr) (lookup expr env))
+        ((null? expr) (error "eval: can't evaluate '()"))
+        ((list? expr) (let ((sf (assq (car expr) special-forms)))
+                        (if sf
+                            ((cdr sf) (cdr expr) env)
+                            (apply (eval (car expr) env)
+                                   (eval-list (cdr expr) env)))))
+        (else (error "eval: can't evaluate")
+              (error expr))))
+
+;;; apply
+
+(define (zip-args params args)
+  (cond ((null? params) (if (null? args) '() (error "apply: too many arguments")))
+        ((symbol? params) (list (cons params args)))
+        ((null? args) (error "apply: too few argument"))
+        (else (cons ((car params) (car args))
+                    (zip-args (cdr params) (cdr args))))))
+
+(define (bind params args env)
+  (cons (zip-args params args) env))
+
+(define (apply f args)
+  (define (closure? x) (and (pair? x) (eq? (car x) 'closure)))
+  (cond ((not (list? args)) (error "apply: expected list as second argument"))
+        ((procedure? f) (apply-procedure f))
+        ((closure? f) (eval (cdadr closure) (bind args (cddr closure)))) ; eval function body in new env
+        (error "apply: expected procedure or closure as first argument")))
+
