@@ -24,6 +24,10 @@ class SchemeObject {
         if(this.truthy()) return this;
         else return other();
     }
+
+    print() {
+        return "" + this.val;
+    }
 }
 
 class SchemeBool extends SchemeObject {
@@ -43,6 +47,10 @@ class SchemeNil extends SchemeObject {
 
     constructor() {
         super(null);
+    }
+
+    print() {
+        return "nil";
     }
 }
 
@@ -69,17 +77,55 @@ class SchemeProcedure extends SchemeObject {
 
         return this.val(...args);
     }
+
+    print() {
+        return "#<procedure>";
+    }
 }
 
 class SchemePair extends SchemeObject {
     type = "pair";
+
+    print() {
+        let res = "(";
+        let curr = this;
+
+        while(curr.type == "pair") {
+            let val = curr.val.car.print();
+            curr = curr.val.cdr;
+
+            if(curr.type == "pair") {
+                res += val + " ";
+            } else if(curr.type != "nil") {
+                res += val + " . " + curr.print();
+            } else {
+                res += val;
+            }
+        }
+
+        return res + ")";
+    }
+}
+
+class SchemeString extends SchemeObject {
+    type = "string";
+
+    print() {
+        return '"' + this.val + '"';
+    }
+}
+
+class SchemeVector extends SchemeObject {
+    type = "vector";
+
+    print() {
+        return "#(" + this.val.map(x => x.print()).join(" ") + ")";
+    }
 }
 
 class SchemeNum extends SchemeObject { type = "number"; }
 class SchemeChar extends SchemeObject { type = "char"; }
-class SchemeString extends SchemeObject { type = "string"; }
 class SchemeSymbol extends SchemeObject { type = "symbol"; }
-class SchemeVector extends SchemeObject { type = "vector"; }
 
 /* helpers */
 
@@ -88,7 +134,7 @@ function err(message) {
     return new SchemeNil();
 }
 
-function list_to_vec(l) {
+function list_to_arr(l) {
     // assume l is list
     let v = [];
 
@@ -97,7 +143,11 @@ function list_to_vec(l) {
         l = l.val.cdr;
     }
 
-    return new SchemeVector(v);
+    return v;
+}
+
+function list_to_vec(l) {
+    return new SchemeVector(list_to_arr(l));
 }
 
 function arr_to_list(a) {
@@ -141,9 +191,10 @@ function mangle_name(id) {
 let s2j_eqQuestion = new SchemeProcedure(2, false, (x, y) => new SchemeBool(x.type == y.type && x.val == y.val));
 
 let s2j_error = new SchemeProcedure(1, false, s => err(s.val));
-let s2j_print = new SchemeProcedure(1, false, o => console.log(o));
+let s2j_print = new SchemeProcedure(1, true, o => { console.log(list_to_arr(o).map(e => e.print()).join(" ")); return new SchemeNil(); } );
 
-let s2j_evalSubsymbol = new SchemeProcedure(1, false, s => s.type != "symbol" ? err("eval-symbol: expected symbol") : eval(mangle_name(s.val)));
+let s2j_jsSubevalSubsymbol = new SchemeProcedure(1, false, s => s.type != "symbol" ? err("js-eval-symbol: expected symbol") :
+                                                                                     eval(mangle_name(s.val)) || err("js-eval-symbol: undefined name: " + mangle_name(s.val)) );
 let s2j_setBangSubdynamic = new SchemeProcedure(2, false, (s, x) => s.type != "symbol" ? err("set!-dynamic: expected symbol") : eval(`${mangle_name(s.val)} = x`));
 
 let s2j_applySubprocedure = new SchemeProcedure(2, false, (p, args) => p.type != "procedure" ? err("apply-procedure: expected procedure as first argument") :
