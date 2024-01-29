@@ -18,7 +18,8 @@ debug:
 	cd src; $(GHCi) Main.hs
 
 test: FORCE
-	./test/run-tests.sh
+	cabal run -- s2j test/test*
+	node out.scm.js
 
 FORCE: ;
 
