@@ -1,5 +1,25 @@
+;;;;; misc
+
 (define (not b)
   (if b #f #t))
+
+(define (all xs) ; non-variadic version of "and"
+  (define (all-rec xs)
+    (if (null? xs)
+        #t
+        (and (car xs) (all-rec (cdr xs)))))
+  (if (not (list? xs))
+      (error "all: expected list")
+      (all-rec xs)))
+
+(define (any xs) ; non-variadic version of "or"
+  (define (any-rec xs)
+    (if (null? xs)
+        #f
+        (or (car xs) (any-rec (cdr xs)))))
+  (if (not (list? xs))
+      (error "any: expected list")
+      (any-rec xs)))
 
 (define eqv? eq?) ; alias for eq?
 
@@ -7,7 +27,7 @@
   (cond ((or (pair? x) (pair? y))
          (and (pair? y)
               (pair? x)
-              (eq? (car x) (car y))
+              (equal? (car x) (car y))
               (equal? (cdr x) (cdr y))))
         ((or (vector? x) (vector? y))
          (and (vector? x)
@@ -15,7 +35,21 @@
               (equal? (vector->list x) (vector->list y))))
         (else (eq? x y))))
 
-(define (list? x) (or (null? x) (and (pair? x) (list? (cdr x)))))
+;;;;; functional
+
+(define (compose f g)
+  (lambda (x) (f (g x))))
+
+(define (zip x y)
+  (define (zip-rec x y)
+    (if (null? x)
+        '()
+        (cons (cons (car x) (car y)) (zip (cdr x) (cdr y)))))
+  (cond ((or (not (list? x))
+            (not (list? y)))
+         (error "zip: expected lists"))
+        ((not (= (length x) (length y))) (error "zip: mismatched lengths"))
+        (else (zip-rec x y))))
 
 ;;;;; pairs / lists
 
@@ -51,6 +85,8 @@
 (define (cddddr x) (cdr (cdr (cdr (cdr x)))))
 
 (define (list . elems) elems) ; take advantage of variadic list construction :)
+
+(define (list? x) (or (null? x) (and (pair? x) (list? (cdr x)))))
 
 (define (length l)
   (cond
@@ -134,10 +170,43 @@
 
 ;;;;; numeric
 
-; <=
-; >=
+(define (+ . l)
+  (define (rec+ l)
+    (if (null? l)
+        0
+        (b+ (car l) (rec+ (cdr l)))))
+  (rec+ l))
 
-; zero?
+(define (- . l)
+  (define (rec- l)
+    (cond ((null? l) (error "-: expected at least one argument"))
+          ((null? (cdr l)) (b- 0 (car l))) ; negate
+          ((null? (cddr l)) (b- (car l) (cadr l))) ; binary minus
+          (else (rec- (cons (b- (car l) (cadr l)) ; n-ary minus
+                            (cddr l))))))
+  (rec- l))
+
+(define (* . l)
+  (define (rec* l)
+    (if (null? l)
+        1
+        (b* (car l) (rec* (cdr l)))))
+  (rec* l))
+
+(define (/ . l)
+  (define (rec/ l)
+    (cond ((null? l) (error "/: expected at least one argument"))
+          ((null? (cdr l)) (b/ 1 (car l))) ; inverse
+          ((null? (cddr l)) (b/ (car l) (cadr l))) ; binary divide
+          (else (rec- (cons (b/ (car l) (cadr l)) ; n-ary divide
+                            (cddr l))))))
+  (rec/ l))
+
+(define (<= x y) (or (= x y) (< x y)))
+
+(define (>= x y) (or (= x y) (> x y)))
+
+(define (zero? x) (= x 0))
 
 ; positive?
 
@@ -218,31 +287,88 @@
 
 ;;; eval
 
-; eval-lambda
+(define (eval-lambda args env)
+  (if (not (= 2 (length args)))
+      (error "lambda: expected two arguments")
+      (cons 'closure (cons args env))))
 
-; eval-define
+(define (eval-cond args env)
+  (cond ((null? args) (error "non-exhaustive conditional"))
+        ((not (pair? (car args))) (error "cond: expected pairs"))
+        ((or (eq? (caar args) 'else) (eval (caar args) env)) (eval (cadar args) env))
+        (else (eval-cond (cdr args) env))))
 
-; eval-cond
+(define (eval-if args env)
+  (cond ((not (= 3 (length args))) (error "if: expected 3 arguments"))
+        (else (let ((pred   (lambda () (eval (car args) env)))
+                    (conseq (lambda () (eval (cadr args) env)))
+                    (alt    (lambda () (eval (caddr args) env))))
+                   (if (pred) (conseq) (alt))))))
 
-; eval-if
+(define (eval-and xs env)
+  (if (null? xs)
+      #t
+      (and (eval (car xs) env) (eval-and (cdr xs) env))))
 
-; eval-and
+(define (eval-or xs env)
+  (if (null? xs)
+      #f
+      (or (eval (car xs) env) (eval-or (cdr xs) env))))
 
-; eval-or
+(define (eval-set! args env)
+  (define (eval-set-rec id val env)
+    (cond ((null? env) (set!-dynamic id val))
+          (else (let ((binding (assq id (car env))))
+                     (if binding
+                         (set-cdr! binding val)
+                         (eval-set-rec id val (cdr env)))))))
+  (cond ((not (= 2 (length args))) (error "set!: expected two arguments"))
+        ((not (symbol? (car args))) (error "set!: expected symbol as first argument"))
+        (else (eval-set-rec (car args) (eval (cadr args) env) env))))
 
-; evel-set!
+(define (valid-binding? x) (and (list? x)
+                               (= 2 (length x))
+                               (symbol? (car x))))
 
-; eval-let
+(define (eval-let args env)
+  (cond ((< (length args) 1) (error "let: expected more than one argument"))
+        ((not (all (map valid-binding? (car args)))) (error "let: invalid bindings"))
+        (else (let* ((bindings (car args))
+                     (names (map car bindings))
+                     (vals (map cadr bindings))
+                     (eval-in-env (lambda (x) (eval x env)))
+                     (bound-layer (zip names (map eval-in-env vals)))
+                     (env2 (cons bound-layer env)))
+                    (eval-begin (cdr args) env2)))))
 
-; eval-let*
+(define (eval-let* args env)
+  (define (eval-let*-rec bindings body) ; reduce bindings recursive normal let expressions
+    (if (null? bindings)
+      (cons 'begin body)
+      (list 'let (list (car bindings)) (eval-let*-rec (cdr bindings) body))))
+  (cond ((< (length args) 1) (error "let*: expected more than one argument"))
+        (else (eval (eval-let*-rec (car args) (cdr args)) env))))
 
-; eval-letrec
+(define (eval-letrec args env)
+  (define (defaultify-snd x)
+    (if (not (pair? x))
+        (error "letrec: expected bindings to be pairs")
+        (list (car x) "default-arg")))
+  (define (cascade-sets bindings body)
+    (if (null? bindings)
+        body
+        (cons (list 'set! (caar bindings) (cadar bindings))
+              (cascade-sets (cdr bindings) body))))
+  (cond ((< (length args) 1) (error "letrec: expected more than one argument"))
+        (else (let ((args2 (map defaultify-snd (car args))) ;; TODO remove "*" in let*
+                    (body2 (cascade-sets (car args) (cdr args))))
+                   (eval-let* (cons args2 body2)
+                              env)))))
 
-; eval-begin
-
-; eval-list
-
-; lookup
+(define (eval-begin args env)
+  (cond ((null? args) '())
+        ((null? (cdr args)) (eval (car args) env))
+        (else (eval (car args) env) (eval-begin (cdr args) env))))
 
 (define (eval-list l env)
   (if (null? l)
@@ -250,9 +376,16 @@
       (cons (eval (car l) env)
             (eval-list (cdr l) env))))
 
+; lookup
+(define (lookup sym env)
+  (if (null? env)
+      (js-eval-symbol sym)
+      (let ((pair (assq sym (car env))))
+           (if pair (cdr pair)
+                    (lookup sym (cdr env))))))
+
 (define special-forms (list
   (cons 'lambda eval-lambda)
-  (cons 'define eval-define)
   (cons 'cond eval-cond)
   (cons 'if eval-if)
   (cons 'and eval-and)
@@ -260,20 +393,20 @@
   (cons 'set! eval-set!)
   (cons 'let eval-let)
   (cons 'let* eval-let*)
-  (const 'letrec eval-letrec)
+  (cons 'letrec eval-letrec)
   (cons 'begin eval-begin)
 ))
 
 (define (eval expr env)
-  (cond ((or (number? expr)
+  (cond ((or (null? expr)
+             (number? expr)
              (boolean? expr)
              (string? expr)
              (vector? expr)
              (char? expr)
              (procedure? expr))
-         x)
+         expr)
         ((symbol? expr) (lookup expr env))
-        ((null? expr) (error "eval: can't evaluate '()"))
         ((list? expr) (let ((sf (assq (car expr) special-forms)))
                         (if sf
                             ((cdr sf) (cdr expr) env)
@@ -288,7 +421,7 @@
   (cond ((null? params) (if (null? args) '() (error "apply: too many arguments")))
         ((symbol? params) (list (cons params args)))
         ((null? args) (error "apply: too few argument"))
-        (else (cons ((car params) (car args))
+        (else (cons (cons (car params) (car args))
                     (zip-args (cdr params) (cdr args))))))
 
 (define (bind params args env)
@@ -297,7 +430,6 @@
 (define (apply f args)
   (define (closure? x) (and (pair? x) (eq? (car x) 'closure)))
   (cond ((not (list? args)) (error "apply: expected list as second argument"))
-        ((procedure? f) (apply-procedure f))
-        ((closure? f) (eval (cdadr closure) (bind args (cddr closure)))) ; eval function body in new env
-        (error "apply: expected procedure or closure as first argument")))
-
+        ((procedure? f) (apply-procedure f args))
+        ((closure? f) (eval (cadadr f) (bind (caadr f) args (cddr f)))) ; eval function body in new env
+        (else (error "apply: expected procedure or closure as first argument"))))

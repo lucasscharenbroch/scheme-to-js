@@ -12,7 +12,7 @@ class SchemeObject {
     }
 
     call() {
-        console.error("application: not a procedure: ", this);
+        throw new Error("application: not a procedure: ", this);
     }
 
     and(other) {
@@ -71,7 +71,7 @@ class SchemeProcedure extends SchemeObject {
         }
 
         if(args.length != this.num_args) {
-            console.error("invalid args supplied to procedure: ", this.val, "(got ", args.length, "expected", this.num_args, ")");
+            throw new Error("invalid args supplied to procedure: ", this.val.toString(), "(got ", args.length, "expected", this.num_args, ")");
             return undefined;
         }
 
@@ -86,12 +86,21 @@ class SchemeProcedure extends SchemeObject {
 class SchemePair extends SchemeObject {
     type = "pair";
 
-    print() {
+    print(parents = []) {
         let res = "(";
         let curr = this;
 
+        parents.push(this);
+
         while(curr.type == "pair") {
-            let val = curr.val.car.print();
+            let val;
+
+            if(parents.includes(curr.val.car)) {
+                val = "[ recurse (" + parents.indexOf(curr.val.car) + ") ]";
+            } else {
+                val = curr.val.car.print([...parents]);
+            }
+
             curr = curr.val.cdr;
 
             if(curr.type == "pair") {
@@ -130,7 +139,7 @@ class SchemeSymbol extends SchemeObject { type = "symbol"; }
 /* helpers */
 
 function err(message) {
-    console.error(message);
+    throw new Error(message);
     return new SchemeNil();
 }
 
