@@ -376,6 +376,11 @@
       (cons (eval (car l) env)
             (eval-list (cdr l) env))))
 
+(define (eval-quote l env)
+  (if (not (= 1 (length l)))
+    (error "quote: expected exactly one argument")
+    (car l)))
+
 ; lookup
 (define (lookup sym env)
   (if (null? env)
@@ -395,6 +400,7 @@
   (cons 'let* eval-let*)
   (cons 'letrec eval-letrec)
   (cons 'begin eval-begin)
+  (cons 'quote eval-quote)
 ))
 
 (define (eval expr env)
@@ -412,7 +418,7 @@
                             ((cdr sf) (cdr expr) env)
                             (apply (eval (car expr) env)
                                    (eval-list (cdr expr) env)))))
-        (else (error "eval: can't evaluate")
+        (else (error "eval: can't evaluate" expr)
               (error expr))))
 
 ;;; apply

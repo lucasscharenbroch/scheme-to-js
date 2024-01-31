@@ -1,10 +1,10 @@
 ;#include std.scm
 
 (define (assert pred)
-  (if pred
+  (if (eval pred '())
     '()
     (begin
-      (error "assertion failed"))))
+      (error "assertion failed" pred))))
 
 (define (assert= x y)
-  (assert (equal? x y)))
+  (assert (list 'equal? x y)))

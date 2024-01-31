@@ -19,7 +19,7 @@ debug:
 
 test: FORCE
 	cabal run -- s2j test/test*
-	node out.scm.js
+	node --trace-uncaught out.scm.js
 
 FORCE: ;
 

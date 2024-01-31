@@ -71,7 +71,7 @@ class SchemeProcedure extends SchemeObject {
         }
 
         if(args.length != this.num_args) {
-            throw new Error("invalid args supplied to procedure: ", this.val.toString(), "(got ", args.length, "expected", this.num_args, ")");
+            throw new Error("invalid args supplied to procedure:\n" + this.val.toString() + "\n(got " + args.length + ", expected " + this.num_args + ")");
             return undefined;
         }
 
@@ -140,7 +140,6 @@ class SchemeSymbol extends SchemeObject { type = "symbol"; }
 
 function err(message) {
     throw new Error(message);
-    return new SchemeNil();
 }
 
 function list_to_arr(l) {
@@ -199,7 +198,7 @@ function mangle_name(id) {
 
 let s2j_eqQuestion = new SchemeProcedure(2, false, (x, y) => new SchemeBool(x.type == y.type && x.val == y.val));
 
-let s2j_error = new SchemeProcedure(1, false, s => err(s.val));
+let s2j_error = new SchemeProcedure(1, true, s => err(list_to_arr(s).map(e => e.print()).join(" ")));
 let s2j_print = new SchemeProcedure(1, true, o => { console.log(list_to_arr(o).map(e => e.print()).join(" ")); return new SchemeNil(); } );
 
 let s2j_jsSubevalSubsymbol = new SchemeProcedure(1, false, s => s.type != "symbol" ? err("js-eval-symbol: expected symbol") :
