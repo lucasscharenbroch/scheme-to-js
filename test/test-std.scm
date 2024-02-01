@@ -61,6 +61,22 @@
 (assert= '(- 1 3) -2)
 (assert= '(- 1 3 5) -7)
 
+(assert= '(<= 1 2) #t)
+(assert= '(<= 2 2) #t)
+(assert= '(<= 3 2) #f)
+
+(assert= '(>= 1 2) #f)
+(assert= '(>= 2 2) #t)
+(assert= '(>= 3 2) #t)
+
+(assert= '(~= 0.00000002 0) #t)
+(assert= '(~= 3.00000002 3) #t)
+(assert= '(~= 3.2 3) #f)
+
+(assert= '(zero? 0) #t)
+(assert= '(zero? 0.1) #f)
+(assert= '(zero? -0.1) #f)
+
 (assert= '(positive? 1) #t)
 (assert= '(positive? 0) #f)
 (assert= '(positive? -1) #f)
@@ -89,6 +105,33 @@
 (assert= '(% 13 6) 1)
 (assert= '(% -1 6) 5)
 (assert= '(% -9 6) 3)
+
+; chars
+
+(assert= '(char-alphabetic? #\a) #t)
+(assert= '(char-alphabetic? #\x) #t)
+(assert= '(char-alphabetic? #\z) #t)
+(assert= '(char-alphabetic? #\+) #f)
+
+(assert= '(char-numeric? #\1) #t)
+(assert= '(char-numeric? #\2) #t)
+(assert= '(char-numeric? #\x) #f)
+(assert= '(char-numeric? #\+) #f)
+
+(assert= '(char-whitespace? #\space) #t)
+(assert= '(char-whitespace? #\newline) #t)
+(assert= '(char-whitespace? #\2) #f)
+(assert= '(char-whitespace? #\+) #f)
+
+(assert= '(list->string (map char-upcase (string->list "aBcDeF123")))
+          "ABCDEF123")
+
+(assert= '(list->string (map char-downcase (string->list "aBcDeF123")))
+          "abcdef123")
+
+; strings
+
+; vectors
 
 ; eval
 
@@ -138,20 +181,21 @@
 
 ; misc / integration
 
-; (define (croot x)
-;   (define (improve y)
-;     (/ (+ (/ x (* y y))
-;           (* 2 y))
-;        3))
-;   (define (good-enough? y)
-;     (< (abs (- (* y y y)
-;        0.001)))
-;   (define (try y)
-;     (if (good-enough? y)
-;         y
-;         (try (improve y))))
-;   (try 1.0)))
+(define (croot x)
+  (define (improve y)
+    (/ (+ (/ x (* y y))
+          (* 2 y))
+       3))
+  (define (good-enough? y)
+    (< (abs (- (* y y y)
+               x))
+       epsilon))
+  (define (try y)
+    (if (good-enough? y)
+        y
+        (try (improve y))))
+  (try 1.0))
 
-; (print (croot 9))
-; (print (croot 10))
-; (print (croot 11))
+
+(assert= '(~= (croot (* 3 3 3)) 3) #t)
+(assert= '(~= (croot (* 8 8 8)) 8) #t)

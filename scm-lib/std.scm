@@ -35,6 +35,9 @@
               (equal? (vector->list x) (vector->list y))))
         (else (eq? x y))))
 
+(define (truthy? x)
+ (if x #t #f))
+
 ;;;;; functional
 
 (define (compose f g)
@@ -188,6 +191,13 @@
 
 (define (>= x y) (or (= x y) (> x y)))
 
+(define epsilon 0.000001)
+(define (~= x y)
+  (if (not (and (number? x) (number? y)))
+      (error "~=: expected numbers")
+      (let ((diff (abs (- x y))))
+        (<= (abs diff) epsilon))))
+
 (define (zero? x) (= x 0))
 
 (define (positive? x)
@@ -252,54 +262,63 @@
 
 ;;;;; chars
 
-; char=?
-; char<?
-; char>?
-; char<=?
-; char>=?
+(define (char-alphabetic? c)
+  (if (not (char? c))
+      (error "char-alphabetic: expected char")
+      (truthy? (memq c (string->list "abcdefghijklmnopqrstuvwxyz")))))
 
-; char-alphabetic?
-; char-numeric?
-; char-whitespace?
+(define (char-numeric? c)
+  (if (not (char? c))
+      (error "char-numeric: expected char")
+      (truthy? (memq c (string->list "1234567890")))))
 
-; char-upcase
-; char-downcase
+(define (char-whitespace? c)
+  (if (not (char? c))
+      (error "char-whitespace: expected char")
+        (truthy? (memq c '(#\space #\newline)))))
+
+(define (char-upcase c)
+  (if (not (char? c))
+      (error "char-upcase: expected char")
+      (let ((ci (char->integer c))
+            (a (char->integer #\a))
+            (z (char->integer #\z))
+            (big-a (char->integer #\A)))
+           (if (and (<= ci z) (>= ci a))
+               (integer->char (+ ci (- big-a a)))
+               c))))
+
+(define (char-downcase c)
+  (if (not (char? c))
+      (error "char-downcase: expected char")
+      (let ((ci (char->integer c))
+            (A (char->integer #\A))
+            (Z (char->integer #\Z))
+            (little-a (char->integer #\a)))
+           (if (and (<= ci Z) (>= ci A))
+               (integer->char (- ci (- A little-a)))
+               c))))
 
 ;;;;; strings
-
-; make-string (k spaces, or k of the given char)
 
 ; string-length
 
 ; string-ref
 
-; string=?
-; string<?
-; string>?
-; string<=?
-; string>=?
-
-; substring (string, start, end)
+; string-cmp
 
 ; string-append (variadic)
 
 ; string-copy (immutable)
 
-; string-fill! (mutable)
-
 ;;;;; vector
 
-; make-vector (k * 0, or given)
-
-; vector (like list)
 (define (vector . elems)
   (vector->list elems))
 
 ; vector-length
 
 ; vector-ref
-
-; vector-fill! (mutable)
 
 ;;;;; metacircular evaluator
 
