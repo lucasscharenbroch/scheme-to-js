@@ -131,7 +131,27 @@
 
 ; strings
 
+(assert= '(string-length "abcdef") 6)
+
+(assert= '(string-ref "abcdef" 4) #\e)
+
+(assert= '(string-cmp "abc" "abc") 0)
+(assert= '(string-cmp "abc" "abcd") -1)
+(assert= '(string-cmp "abcde" "abcd") 1)
+(assert= '(string-cmp "abcde" "abcdf") -1)
+(assert= '(string-cmp "abcde" "abcdg") -2)
+(assert= '(string-cmp "abcdg" "abcde") 2)
+
+(assert= '(string-append "abc " "def") "abc def")
+(assert= '(string-append "abc " "def " "ghi") "abc def ghi")
+(assert= '(string-append) "")
+
 ; vectors
+
+(assert= '(vector-length '#(9 3 a b 9 fj +)) 7)
+(assert= '(vector-length '#()) 0)
+
+(assert= '(vector-ref '#(a b c d e) 2) ''c)
 
 ; eval
 

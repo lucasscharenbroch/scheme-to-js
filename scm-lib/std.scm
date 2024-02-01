@@ -301,24 +301,47 @@
 
 ;;;;; strings
 
-; string-length
+(define (string-length s)
+  (if (string? s)
+      (length (string->list s))
+      (error "string-length: expected string")))
 
-; string-ref
+(define (string-ref s k)
+  (if (string? s)
+      (list-ref (string->list s) k)
+      (error "string-ref: expected string")))
 
-; string-cmp
+(define (string-cmp x y)
+  (define (string-cmp-rec x y)
+    (cond ((and (null? x) (null? y)) 0)
+          ((null? x) -1)
+          ((null? y) 1)
+          ((not (eq? (car x) (car y))) (- (char->integer (car x))
+                                          (char->integer (car y))))
+          (else (string-cmp-rec (cdr x) (cdr y)))))
+  (if (not (and (string? x) (string? y)))
+      (error "string-cmp: expected strings")
+      (string-cmp-rec (string->list x) (string->list y))))
 
-; string-append (variadic)
-
-; string-copy (immutable)
+(define (string-append . ss)
+  (if (not (all (map string? ss)))
+      (error "string-append: expected strings")
+      (list->string (foldl append '() (map string->list ss)))))
 
 ;;;;; vector
 
 (define (vector . elems)
   (vector->list elems))
 
-; vector-length
+(define (vector-length v)
+  (if (not (vector? v))
+      (error "vector-length: expected vector")
+      (length (vector->list v))))
 
-; vector-ref
+(define (vector-ref v k)
+  (if (vector? v)
+      (list-ref (vector->list v) k)
+      (error "vector-ref: expected vector")))
 
 ;;;;; metacircular evaluator
 
