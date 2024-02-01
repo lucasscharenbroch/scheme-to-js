@@ -40,6 +40,11 @@
 (define (compose f g)
   (lambda (x) (f (g x))))
 
+(define (foldl f init l)
+  (cond ((null? l) init)
+        ((not (pair? l)) (error "foldl: expected pair"))
+        (else (foldl f (f init (car l)) (cdr l)))))
+
 (define (zip x y)
   (define (zip-rec x y)
     (if (null? x)
@@ -115,8 +120,7 @@
       (error "reverse: expected list")
       (reverse-iter l '())))
 
-; (same as haskell's "drop")
-(define (list-tail l n)
+(define (list-tail l n) ; (same as haskell's "drop")
   (if (<= n 0)
       l
       (cond
@@ -124,8 +128,7 @@
         ((not (pair? l)) ("list-tail: non-pair reached"))
         (else (list-tail (cdr l) (- n 1))))))
 
-; (!!)
-(define (list-ref l k)
+(define (list-ref l k) ; (!!)
   (let ((tail (list-tail l k)))
        (cond ((null? tail) (error "list-ref: error when computing tail"))
              ((not (pair? tail)) tail)
@@ -167,40 +170,19 @@
         ((not (list? l)) (error "map: expected list as second argument"))
         (else (map-rec f l))))
 
-
 ;;;;; numeric
 
-(define (+ . l)
-  (define (rec+ l)
-    (if (null? l)
-        0
-        (b+ (car l) (rec+ (cdr l)))))
-  (rec+ l))
+(define (+ . ns) (foldl b+ 0 ns))
 
-(define (- . l)
-  (define (rec- l)
-    (cond ((null? l) (error "-: expected at least one argument"))
-          ((null? (cdr l)) (b- 0 (car l))) ; negate
-          ((null? (cddr l)) (b- (car l) (cadr l))) ; binary minus
-          (else (rec- (cons (b- (car l) (cadr l)) ; n-ary minus
-                            (cddr l))))))
-  (rec- l))
+(define (- n . ns)
+  (cond ((null? ns) (b- 0 n)) ; negate
+        (else (foldl b- n ns))))
 
-(define (* . l)
-  (define (rec* l)
-    (if (null? l)
-        1
-        (b* (car l) (rec* (cdr l)))))
-  (rec* l))
+(define (* . ns) (foldl b* 1 ns))
 
-(define (/ . l)
-  (define (rec/ l)
-    (cond ((null? l) (error "/: expected at least one argument"))
-          ((null? (cdr l)) (b/ 1 (car l))) ; inverse
-          ((null? (cddr l)) (b/ (car l) (cadr l))) ; binary divide
-          (else (rec- (cons (b/ (car l) (cadr l)) ; n-ary divide
-                            (cddr l))))))
-  (rec/ l))
+(define (/ n . ns)
+  (cond ((null? ns) (b/ 1 n)) ; binary divide
+        (else (foldl b/ n ns)))) ; n-ary divide
 
 (define (<= x y) (or (= x y) (< x y)))
 
@@ -208,33 +190,65 @@
 
 (define (zero? x) (= x 0))
 
-; positive?
+(define (positive? x)
+  (cond ((not (number? x)) (error "positive?: expected number"))
+        (else (not (<= x 0)))))
 
-; negative?
+(define (negative? x)
+  (cond ((not (number? x)) (error "negative?: expected number"))
+        (else (not (>= x 0)))))
 
-; odd?
+(define (odd? x)
+  (if (not (number? x))
+      (error "odd: expected number")
+      (= 1 (% x 2))))
 
-; even?
+(define (even? x)
+  (if (not (number? x))
+      (error "eve: expected number")
+      (= 0 (% x 2))))
 
-; max
+(define (max x . xs)
+  (define (maxb a b)
+    (cond ((not (and (number? a) (number? b)))
+           (error "max: expected numbers"))
+          ((>= a b) a)
+          (else b)))
+  (foldl maxb x xs))
 
-; min
+(define (min x . xs)
+  (define (minb a b)
+    (cond ((not (and (number? a) (number? b)))
+           (error "min: expected numbers"))
+          ((<= a b) a)
+          (else b)))
+  (foldl minb x xs))
 
-; abs
 (define (abs x)
   (cond ((not (number? x)) (error "abs: expected number"))
         ((>= x 0) x)
         (else (- x))))
 
-; quotient
+(define (truncate x) ; round towards zero
+  (if (not (number? x))
+      (error "truncate: expected number")
+      (let ((sign (if (>= x 0) 1 -1)))
+           (* sign (min (abs x) (floor (abs x)))))))
 
-; remainder
+(define (// x y)
+  (if (not (and (number? x) (number? y)))
+      (error "//: expected numbers")
+      (truncate (/ (truncate x) (truncate y)))))
 
-; modulo
-
-; truncate
-
-; round
+(define (% x y)
+  (cond ((not (and (number? x) (number? y)))
+         (error "%: expected numbers"))
+        ((< x 0) (% (+ x
+                       (* (+ 1
+                             (floor (abs x)))
+                          y))
+                    y))
+        (else (- x (* y (// x y))))))
 
 ;;;;; chars
 

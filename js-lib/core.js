@@ -12,7 +12,7 @@ class SchemeObject {
     }
 
     call() {
-        throw new Error("application: not a procedure: ", this);
+        throw new Error("application: not a procedure: " + this.print());
     }
 
     and(other) {

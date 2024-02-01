@@ -14,6 +14,8 @@
 
 (assert= '(zip '(1 2 3) '(a b c)) ''((1 . a) (2 . b) (3 . c)))
 
+(assert= '(foldl b+ 0 '(1 2 3)) 6)
+
 ; lists
 
 (assert= '(caar (cons (cons 1 2) 4)) 1)
@@ -58,6 +60,35 @@
 (assert= '(- 1) -1)
 (assert= '(- 1 3) -2)
 (assert= '(- 1 3 5) -7)
+
+(assert= '(positive? 1) #t)
+(assert= '(positive? 0) #f)
+(assert= '(positive? -1) #f)
+
+(assert= '(negative? 1) #f)
+(assert= '(negative? 0) #f)
+(assert= '(negative? -1) #t)
+
+(assert= '(odd? 3) #t)
+(assert= '(odd? 3.3) #f)
+(assert= '(odd? 2) #f)
+
+(assert= '(even? 3) #f)
+(assert= '(even? 3.3) #f)
+(assert= '(even? 2) #t)
+
+(assert= '(max -1 2 -3) 2)
+(assert= '(min -1 2 -3) -3)
+
+(assert= '(map abs '(1 -2 -3 3 4 -0.4)) ''(1 2 3 3 4 0.4))
+
+(assert= '(map truncate '(1.2 4.99 -4.99 0 0.1)) ''(1 4 -4 0 0))
+
+(assert= '(// 13 6) 2)
+(assert= '(// -13 6) -2)
+(assert= '(% 13 6) 1)
+(assert= '(% -1 6) 5)
+(assert= '(% -9 6) 3)
 
 ; eval
 
@@ -104,3 +135,23 @@
                                                 #f
                                                 (even? (- n 1))))))
                          (even? 88)) '()) #t)
+
+; misc / integration
+
+; (define (croot x)
+;   (define (improve y)
+;     (/ (+ (/ x (* y y))
+;           (* 2 y))
+;        3))
+;   (define (good-enough? y)
+;     (< (abs (- (* y y y)
+;        0.001)))
+;   (define (try y)
+;     (if (good-enough? y)
+;         y
+;         (try (improve y))))
+;   (try 1.0)))
+
+; (print (croot 9))
+; (print (croot 10))
+; (print (croot 11))
