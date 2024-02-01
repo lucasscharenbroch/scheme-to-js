@@ -221,6 +221,10 @@
 ; min
 
 ; abs
+(define (abs x)
+  (cond ((not (number? x)) (error "abs: expected number"))
+        ((>= x 0) x)
+        (else (- x))))
 
 ; quotient
 

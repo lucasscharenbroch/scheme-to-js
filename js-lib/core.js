@@ -224,7 +224,7 @@ let s2j_procedureQuestion = new SchemeProcedure(1, false, x => new SchemeBool(x.
 // conversion
 
 let s2j_symbolSubGtstring = new SchemeProcedure(1, false, s => s.type != "symbol" ? err("symbol->string: expected symbol") : new SchemeString(s.val));
-let s2j_stringSubGtSymbol = new SchemeProcedure(1, false, s => s.type != "string" ? err("string->symbol: expected string") : new SchemeSymbol(s.val));
+let s2j_stringSubGtsymbol = new SchemeProcedure(1, false, s => s.type != "string" ? err("string->symbol: expected string") : new SchemeSymbol(s.val));
 
 let s2j_charSubGtinteger = new SchemeProcedure(1, false, c => c.type != "char" ? err("char->integer: expected char") : new SchemeNum(c.val.charCodeAt(0)));
 let s2j_integerSubGtchar = new SchemeProcedure(1, false, i => i.type != "number" ? err("integer->char: expected integer") : new SchemeChar(String.fromCharCode(i.val)));
@@ -238,7 +238,7 @@ let s2j_listSubGtvector = new SchemeProcedure(1, false, l => !is_list(l) ? err("
 let s2j_vectorSubGtlist = new SchemeProcedure(1, false, v => v.type != "vector" ? err("vector->list: expected vector") : arr_to_list(v.val));
 
 let s2j_numberSubGtstring = new SchemeProcedure(1, false, n => n.type != "number" ? err("number->string: expected number") : new SchemeString("" + n.val));
-let s2j_stringSubGtnumber = new SchemeProcedure(1, false, s => s.type != "string" ? err("string->number: expected string") : new SchemeNumber(Number(s.val)));
+let s2j_stringSubGtnumber = new SchemeProcedure(1, false, s => s.type != "string" ? err("string->number: expected string") : new SchemeNum(Number(s.val)));
 
 // pairs
 
@@ -259,8 +259,8 @@ let s2j_Eq = new SchemeProcedure(2, false, (x, y) => x.type != "number" || y.typ
 let s2j_Lt = new SchemeProcedure(2, false, (x, y) => x.type != "number" || y.type != "number" ? err("=: expected numbers") : new SchemeBool(x.val < y.val));
 let s2j_Gt = new SchemeProcedure(2, false, (x, y) => x.type != "number" || y.type != "number" ? err("=: expected numbers") : new SchemeBool(x.val > y.val));
 
-let s2j_floor = new SchemeProcedure(1, false, x => x.type != number ? err("floor: expected number") : new SchemeNum(Math.floor(x.val)));
-let s2j_ceiling = new SchemeProcedure(1, false, x => x.type != number ? err("floor: expected number") : new SchemeNum(Math.ceil(x.val)));
+let s2j_floor = new SchemeProcedure(1, false, x => x.type != "number" ? err("floor: expected number") : new SchemeNum(Math.floor(x.val)));
+let s2j_ceiling = new SchemeProcedure(1, false, x => x.type != "number" ? err("floor: expected number") : new SchemeNum(Math.ceil(x.val)));
 
 let s2j_exp = new SchemeProcedure(1, false, x => x.type != "number" ? err("exp: expected number") : new SchemeNum(Math.exp(x.val)));
 let s2j_log = new SchemeProcedure(1, false, x => x.type != "number" ? err("log: expected number") : new SchemeNum(Math.log(x.val)));
@@ -271,8 +271,8 @@ let s2j_asin = new SchemeProcedure(1, false, x => x.type != "number" ? err("asin
 let s2j_acos = new SchemeProcedure(1, false, x => x.type != "number" ? err("acos: expected number") : new SchemeNum(Math.acos(x.val)));
 let s2j_atan = new SchemeProcedure(1, false, x => x.type != "number" ? err("atan: expected number") : new SchemeNum(Math.atan(x.val)));
 let s2j_sqrt = new SchemeProcedure(1, false, x => x.type != "number" ? err("sqrt: expected number") : new SchemeNum(Math.sqrt(x.val)));
-let s2j_atan2 = new SchemeProcedure(1, false, (x, y) => x.type != "number" || y.type != "number" ? err("atan2: expected numbers") : new SchemeNum(Math.atan2(x.val, y.val)));
-let s2j_expt = new SchemeProcedure(1, false, (x, y) => x.type != "number" || y.type != "number" ? err("pow: expected numbers") : new SchemeNum(Math.pow(x.val, y.val)));
+let s2j_atan2 = new SchemeProcedure(2, false, (x, y) => x.type != "number" || y.type != "number" ? err("atan2: expected numbers") : new SchemeNum(Math.atan2(x.val, y.val)));
+let s2j_expt = new SchemeProcedure(2, false, (x, y) => x.type != "number" || y.type != "number" ? err("pow: expected numbers") : new SchemeNum(Math.pow(x.val, y.val)));
 
 // mutable
 
