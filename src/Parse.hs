@@ -233,6 +233,7 @@ parseBody = Body <$> many (try $ inParens parseDefinition) <*> many1 parseExpres
 --               | sf_let*
 --               | sf_letrec
 --               | sf_begin
+--               | sf_quote
 
 parseSpecialForm :: ParseFn Expression
 parseSpecialForm = parseSfIf
@@ -244,6 +245,7 @@ parseSpecialForm = parseSfIf
                <|> parseSfLetStar
                <|> parseSfLetRec
                <|> parseSfBegin
+               <|> parseSfQuote
 
 -- sf_if -> if expression expression expression
 
@@ -307,6 +309,11 @@ parseBindingSpec = inParens $ DefSimple <$> parseVariable <*> parseExpression
 
 parseSfBegin :: ParseFn Expression
 parseSfBegin = ExprBegin <$> (parseLitId "begin" *> many parseExpression)
+
+-- sf_quote -> quote datum
+
+parseSfQuote :: ParseFn Expression
+parseSfQuote = ExprQuotation <$> (parseLitId "quote" *> parseDatum)
 
 -- datum -> boolean
 --        | number
