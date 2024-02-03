@@ -155,3 +155,12 @@
 (define test-vec  '#(1 2 3 4 5))
 (vector-set! test-vec 2 100)
 (assert= 'test-vec '#(1 2 100 4 5))
+
+; tail recursion
+
+; (define (until-one-million x)
+;     (if (< 1000000 x)
+;         x
+;         (until-one-million (+ 1 x))))
+; 
+; (until-one-million 0)

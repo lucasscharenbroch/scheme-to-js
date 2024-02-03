@@ -10,7 +10,7 @@ maintainer:         lucasscharenbroch@gmail.com
 
 executable s2j
     main-is:          Main.hs
-    other-modules:    Lex, Preprocess, Parse, Generate
+    other-modules:    Lex, Preprocess, Parse, Generate, Optimize
     build-depends: base ^>=4.15.1.0,
                    parsec ^>= 3.1.14.0,
                    directory ^>= 1.3.6.2

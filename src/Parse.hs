@@ -19,6 +19,7 @@ data Expression = ExprVar String
                 | ExprBool Bool
                 | ExprQuotation Datum
                 | ExprProcedureCall Expression [Expression]
+                | ExprTailCall [Expression] -- produced during optimization
                 | ExprLambda FormalArgs Body
                 -- (special forms)
                 | ExprIf Expression Expression Expression
@@ -60,6 +61,7 @@ data FormalArgs = FormalArgList [String]
 -- (define x y), (define (x ...) body), or (define (x ... . y) body)
 data Definition = DefSimple String Expression
                 | DefFunction String FormalArgs Body
+                | DefTailRecFunction String FormalArgs Body
     deriving (Show)
 
 data Program = ProgDefinition Definition
@@ -67,7 +69,6 @@ data Program = ProgDefinition Definition
     deriving (Show)
 
 type ParseFn = Parsec [Token] ()
-
 
 {- High-Level Wrappers -}
 

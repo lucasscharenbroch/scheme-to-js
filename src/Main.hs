@@ -2,6 +2,7 @@ module Main where
 import Lex
 import Preprocess
 import Parse
+import Optimize
 import Generate
 import Text.Parsec (ParseError)
 import Data.List
@@ -45,7 +46,7 @@ parseAndGen :: IncludeFile -> [Token] -> IO String
 parseAndGen filename toks = do
     case programize toks of
         Left err -> throwErr $ "parser error: " ++ show err
-        Right programs -> return $ intercalate "\n" (map gen programs)
+        Right programs -> return $ intercalate "\n" (map (gen {-. optimize -}) programs)
     where throwErr err = hPutStrLn stderr (filename ++ ": " ++ err) >> exitFailure
 
 validateInfiles :: [String] -> IO ()
