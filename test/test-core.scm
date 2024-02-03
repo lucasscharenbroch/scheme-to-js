@@ -158,9 +158,9 @@
 
 ; tail recursion
 
-; (define (until-one-million x)
-;     (if (< 1000000 x)
-;         x
-;         (until-one-million (+ 1 x))))
-; 
-; (until-one-million 0)
+(define (to-50k x)
+    (if (< 50000 x)
+        x
+        (to-50k (+ 1 x))))
+
+(to-50k 0)

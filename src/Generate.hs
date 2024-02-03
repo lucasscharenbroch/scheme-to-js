@@ -103,6 +103,10 @@ genExpr (ExprString str) = scmString str
 genExpr (ExprBool b) = scmBool b
 genExpr (ExprQuotation datum) = genQuote datum
 genExpr (ExprProcedureCall p args) = callMember (genExpr p) "call" (map genExpr args)
+genExpr (ExprTailCall paramNames args) = call ("() => { " ++ intercalate "\n" [overwriteArgs, setRec, "}"]) []
+    where overwriteArgs = "[" ++ intercalate ", " (map mangle paramNames) ++ "] = [" ++ intercalate ", " (map genExpr args) ++ "];"
+          setRec = "rec = true;"
+genExpr (ExprList exprs) = call "arr_to_list" ["[" ++ intercalate ", " (map genExpr exprs) ++ "]"]
 genExpr (ExprLambda args body) = genLambda args body
 -- (special forms)
 genExpr (ExprIf cond conseq alt) = parenthesize (callMember cond' "truthy" []) ++ " ? " ++ conseq' ++ " : " ++ alt'
@@ -111,7 +115,7 @@ genExpr (ExprIf cond conseq alt) = parenthesize (callMember cond' "truthy" []) +
           alt' = genExpr alt
 genExpr (ExprAssignment id rhs) = mangle id ++ " = " ++ genExpr rhs ++ ";"
 genExpr (ExprCond clauses) = intercalate "\n" (map genClause clauses ++ [scmNil])
-    where genClause (CondIf cond conseq) = callMember (genExpr cond) "truthy" [] ++ " ? " ++ genSeq conseq ++ " :"
+    where genClause (CondIf cond conseq) = callMember (genExpr cond) "truthy" [] ++ " ? " ++ genSeq conseq ++ " : "
           genClause (CondElse conseq)  = "true ? " ++ genSeq conseq ++ " : "
           genSeq [] = scmNil
           genSeq seq = genBody $ Body [] seq
@@ -132,6 +136,7 @@ genExpr (ExprBegin exprs) = genBody $ Body [] exprs
 genDef :: Definition -> String
 genDef (DefSimple name val) = "let " ++ mangle name ++ " = " ++ genExpr val ++ ";\n"
 genDef (DefFunction name args body) = "let " ++ mangle name ++ " = " ++ genLambda args body ++ ";\n"
+genDef (DefTailRecFunction name args body) = "let " ++ mangle name ++ " = " ++ genLambdaTailRec args body ++ ";\n"
 
 genQuote :: Datum -> String
 genQuote (DatumSymbol s) = scmSymbol s
@@ -149,8 +154,21 @@ genBody (Body defs exprs) = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
     where defs' = concatMap genDef defs
           exprs' = concatMap ((++";\n") . genExpr) (init exprs) ++ "return " ++ genExpr (last exprs) ++ ";\n"
 
+genBodyTailRec :: Body -> String
+genBodyTailRec (Body defs exprs) = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
+    where defs' = concatMap genDef defs
+          exprs' = intros ++ concatMap ((++";\n") . genExpr) (init exprs) ++ "let res = " ++ genExpr (last exprs) ++ ";\n" ++ outros
+          intros = "while(true) {\n let rec = false;\n"
+          outros = "if(!rec) return res;\n}\n"
+
+_genLambda :: (Body -> String) -> FormalArgs -> Body -> String
+_genLambda _genBody (FormalArgList names) body = scmProcedure (length names) False f
+    where f = "(" ++ intercalate ", " (map mangle names) ++ ")" ++ " => " ++ _genBody body
+_genLambda _genBody (FormalVarArgs positionals list) body = scmProcedure (1 + length positionals) True f
+    where f = "(" ++ intercalate ", " (map mangle $ positionals ++ [list]) ++ ")" ++ " => " ++ _genBody body
+
 genLambda :: FormalArgs -> Body -> String
-genLambda (FormalArgList names) body = scmProcedure (length names) False f
-    where f = "(" ++ intercalate ", " (map mangle names) ++ ")" ++ " => " ++ genBody body
-genLambda (FormalVarArgs positionals list) body = scmProcedure (1 + length positionals) True f
-    where f = "(" ++ intercalate ", " (map mangle $ positionals ++ [list]) ++ ")" ++ " => " ++ genBody body
+genLambda = _genLambda genBody
+
+genLambdaTailRec :: FormalArgs -> Body -> String
+genLambdaTailRec = _genLambda genBodyTailRec

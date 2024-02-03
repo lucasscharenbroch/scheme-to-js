@@ -46,7 +46,7 @@ parseAndGen :: IncludeFile -> [Token] -> IO String
 parseAndGen filename toks = do
     case programize toks of
         Left err -> throwErr $ "parser error: " ++ show err
-        Right programs -> return $ intercalate "\n" (map (gen {-. optimize -}) programs)
+        Right programs -> return $ intercalate "\n" (map (gen . optimize) programs)
     where throwErr err = hPutStrLn stderr (filename ++ ": " ++ err) >> exitFailure
 
 validateInfiles :: [String] -> IO ()

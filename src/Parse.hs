@@ -19,7 +19,8 @@ data Expression = ExprVar String
                 | ExprBool Bool
                 | ExprQuotation Datum
                 | ExprProcedureCall Expression [Expression]
-                | ExprTailCall [Expression] -- produced during optimization
+                | ExprTailCall [String] [Expression] -- produced during optimization
+                | ExprList [Expression]              -- produced during optimization (forming args for varadic tail call)
                 | ExprLambda FormalArgs Body
                 -- (special forms)
                 | ExprIf Expression Expression Expression
