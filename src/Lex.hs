@@ -8,10 +8,6 @@ import Text.Parsec.Char
 
 {- Helpers -}
 
--- in the newer version of Text.Parsec.Char
-string' :: Stream s m Char => String -> ParsecT s u m String
-string' s = try (string s)
-
 {- Lexer Grammar -}
 {- (from https://standards.scheme.org/official/r3rs.pdf, pp. 30-31) -}
 
