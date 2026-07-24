@@ -2,6 +2,8 @@ module Generate where
 import Parse
 import Data.List
 import Data.Char (toLower)
+import Data.Functor.Foldable (cata)
+import BaseFunctors (DatumF(..), ExpressionF(..))
 
 {- Helpers -}
 
@@ -96,42 +98,44 @@ gen (ProgExpression e) = genExpr e ++ ";"
 gen (ProgDefinition d) = genDef d
 
 genExpr :: Expression -> String
-genExpr (ExprVar id) = mangle id
-genExpr (ExprNumber num) = scmNum num
-genExpr (ExprChar ch) = scmChar ch
-genExpr (ExprString str) = scmString str
-genExpr (ExprBool b) = scmBool b
-genExpr (ExprQuotation datum) = genQuote datum
-genExpr (ExprProcedureCall p args) = callMember (genExpr p) "call" (map genExpr args)
-genExpr (ExprTailCall paramNames args) = call ("() => { " ++ intercalate "\n" [overwriteArgs, setRec, "}"]) []
-    where overwriteArgs = "[" ++ intercalate ", " (map mangle paramNames) ++ "] = [" ++ intercalate ", " (map genExpr args) ++ "];"
-          setRec = "rec = true;"
-genExpr (ExprList exprs) = call "arr_to_list" ["[" ++ intercalate ", " (map genExpr exprs) ++ "]"]
-genExpr (ExprLambda args body) = genLambda args body
--- (special forms)
-genExpr (ExprIf cond conseq alt) = parenthesize (callMember cond' "truthy" []) ++ " ? " ++ conseq' ++ " : " ++ alt'
-    where cond' = genExpr cond
-          conseq' = genExpr conseq
-          alt' = genExpr alt
-genExpr (ExprAssignment id rhs) = mangle id ++ " = " ++ genExpr rhs ++ ";"
-genExpr (ExprCond clauses) = intercalate "\n" (map genClause clauses ++ [scmNil])
-    where genClause (CondIf cond conseq) = callMember (genExpr cond) "truthy" [] ++ " ? " ++ genSeq conseq ++ " : "
-          genClause (CondElse conseq)  = "true ? " ++ genSeq conseq ++ " : "
-          genSeq [] = scmNil
-          genSeq seq = genBody $ Body [] seq
-genExpr (ExprAnd args) = case args of
-    [] -> scmBool True
-    as -> foldr1 (\a b -> callMember a "and" ["() => " ++ b]) $ map genExpr as
-genExpr (ExprOr args) = case args of
-    [] -> scmBool True
-    as -> foldr1 (\a b -> callMember a "or" ["() => " ++ b]) $ map genExpr as
-genExpr (ExprLet bindings body) = call (mkLambda (map definitionName bindings) body) $ map (genExpr . definitionRhs) bindings
-    where mkLambda args body = parenthesize (intercalate "," $ map mangle args) ++ " => " ++ genBody body
-genExpr (ExprLetStar bindings body) = genExpr $ recurse bindings body
-    where recurse [] body = ExprProcedureCall (ExprLambda (FormalArgList []) body) []
-          recurse (d:ds) body = ExprProcedureCall (ExprLambda (FormalArgList [definitionName d]) (Body [] [recurse ds body])) [definitionRhs d]
-genExpr (ExprLetRec outerBindings (Body innerBindings exprs)) = genBody $ Body (outerBindings ++ innerBindings) exprs
-genExpr (ExprBegin exprs) = genBody $ Body [] exprs
+genExpr = cata $ \case
+    (ExprVarF id) -> mangle id
+    (ExprNumberF num) -> scmNum num
+    (ExprCharF ch) -> scmChar ch
+    (ExprStringF str) -> scmString str
+    (ExprBoolF b) -> scmBool b
+    (ExprQuotationF datum) -> genQuote datum
+    (ExprProcedureCallF p args) -> callMember p "call" args
+    (ExprTailCallF paramNames args) -> call ("() => { " ++ intercalate "\n" [overwriteArgs, setRec, "}"]) []
+        where
+            overwriteArgs = "[" ++ intercalate ", " (map mangle paramNames) ++ "] = [" ++ intercalate ", " args ++ "];"
+            setRec = "rec = true;"
+    (ExprListF exprs) -> call "arr_to_list" ["[" ++ intercalate ", " exprs ++ "]"]
+    (ExprLambdaF args body) -> genLambda args body
+    -- (special forms)
+    (ExprIfF cond conseq alt) -> parenthesize (callMember cond "truthy" []) ++ " ? " ++ conseq ++ " : " ++ alt
+    (ExprAssignmentF id rhs) -> mangle id ++ " = " ++ rhs ++ ";"
+    (ExprCondF clauses) -> intercalate "\n" (map genClause clauses ++ [scmNil])
+        where
+            genClause (CondIf cond conseq) = callMember (genExpr cond) "truthy" [] ++ " ? " ++ genSeq conseq ++ " : "
+            genClause (CondElse conseq)  = "true ? " ++ genSeq conseq ++ " : "
+            genSeq [] = scmNil
+            genSeq seq = genBody $ Body [] seq
+    (ExprAndF args) -> case args of
+        [] -> scmBool True
+        as -> foldr1 (\a b -> callMember a "and" ["() => " ++ b]) as
+    (ExprOrF args) -> case args of
+        [] -> scmBool True
+        as -> foldr1 (\a b -> callMember a "or" ["() => " ++ b]) as
+    (ExprLetF bindings body) -> call (mkLambda (map definitionName bindings) body) $ map (genExpr . definitionRhs) bindings
+        where
+            mkLambda args body = parenthesize (intercalate "," $ map mangle args) ++ " => " ++ genBody body
+    (ExprLetStarF bindings body) -> genExpr $ recurse bindings body
+        where
+            recurse [] body = ExprProcedureCall (ExprLambda (FormalArgList []) body) []
+            recurse (d:ds) body = ExprProcedureCall (ExprLambda (FormalArgList [definitionName d]) (Body [] [recurse ds body])) [definitionRhs d]
+    (ExprLetRecF outerBindings (Body innerBindings exprs)) -> genBody $ Body (outerBindings ++ innerBindings) exprs
+    (ExprBeginF exprs) -> _genBody [] exprs
 
 genDef :: Definition -> String
 genDef (DefSimple name val) = "let " ++ mangle name ++ " = " ++ genExpr val ++ ";\n"
@@ -139,20 +143,24 @@ genDef (DefFunction name args body) = "let " ++ mangle name ++ " = " ++ genLambd
 genDef (DefTailRecFunction name args body) = "let " ++ mangle name ++ " = " ++ genLambdaTailRec args body ++ ";\n"
 
 genQuote :: Datum -> String
-genQuote (DatumSymbol s) = scmSymbol s
-genQuote (DatumBool b) = scmBool b
-genQuote (DatumNumber n) = scmNum n
-genQuote (DatumChar c) = scmChar c
-genQuote (DatumString s) = scmString s
-genQuote (DatumPair car cdr) = scmPair (genQuote car) (genQuote cdr)
-genQuote (DatumVector v) = scmVector (map genQuote v)
-genQuote (DatumQuotation d) = scmPair (scmSymbol "quote") (scmList [genQuote d])
-genQuote DatumNull = scmNil
+genQuote = cata $ \case
+    (DatumSymbolF s) -> scmSymbol s
+    (DatumBoolF b) -> scmBool b
+    (DatumNumberF n) -> scmNum n
+    (DatumCharF c) -> scmChar c
+    (DatumStringF s) -> scmString s
+    (DatumPairF car cdr) -> scmPair car cdr
+    (DatumVectorF v) -> scmVector v
+    (DatumQuotationF d) -> scmPair (scmSymbol "quote") (scmList [d])
+    DatumNullF -> scmNil
 
 genBody :: Body -> String
-genBody (Body defs exprs) = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
+genBody (Body defs exprs) = _genBody defs . fmap genExpr $ exprs
+
+_genBody :: [Definition] -> [String] -> String
+_genBody defs gendExprs = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
     where defs' = concatMap genDef defs
-          exprs' = concatMap ((++";\n") . genExpr) (init exprs) ++ "return " ++ genExpr (last exprs) ++ ";\n"
+          exprs' = concatMap (++";\n") (init gendExprs) ++ "return " ++ last gendExprs ++ ";\n"
 
 genBodyTailRec :: Body -> String
 genBodyTailRec (Body defs exprs) = call ("() => {\n" ++ defs' ++ exprs' ++ "}") []
